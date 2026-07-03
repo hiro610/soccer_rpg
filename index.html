@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>サッカーせいちょうRPG</title>
+    <style>
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #2e7d32; color: white; text-align: center; padding: 20px; }
+        .card { background: rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 15px; margin: 20px auto; max-width: 400px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        button { background-color: #ff9800; border: none; color: white; padding: 15px 30px; font-size: 18px; font-weight: bold; border-radius: 30px; cursor: pointer; box-shadow: 0 4px 0 #e65100; transition: 0.1s; }
+        button:active { transform: translateY(4px); box-shadow: none; }
+        .battle-log { background: #1b5e20; padding: 10px; border-radius: 5px; min-height: 50px; margin-top: 15px; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+    <h1>⚽️ サッカーせいちょうRPG ⚽️</h1>
+    
+    <div class="card">
+        <h2>じぶんのステータス</h2>
+        <p style="font-size: 24px;">レベル: <span id="level">1</span></p>
+        <button onclick="train()">れんしゅう完了！</button>
+    </div>
+
+    <div class="card">
+        <h2>ライバルとバトル</h2>
+        <button onclick="battle()" style="background-color: #d32f2f; box-shadow: 0 4px 0 #b71c1c;">バトルスタート！</button>
+        <div class="battle-log" id="log">じゅんびちゅう...</div>
+    </div>
+
+    <script>
+        let lv = 1;
+        
+        function train() {
+            lv++;
+            document.getElementById('level').innerText = lv;
+            alert('ナイスれんしゅう！ レベルが ' + lv + ' になった！');
+        }
+
+        function battle() {
+            const logEl = document.getElementById('log');
+            logEl.innerText = 'トウッ！ あいてにシュートをはなった！';
+            
+            setTimeout(() => {
+                if (lv >= 5 || Math.random() > 0.5) {
+                    logEl.innerHTML = '🎉 <strong>かちました！</strong> お小遣い10円ゲット！';
+                } else {
+                    logEl.innerHTML = '😢 <strong>まけました...</strong> もっとれんしゅうしてレベルをあげよう！';
+                }
+            }, 1000);
+        }
+    </script>
+</body>
+</html>
