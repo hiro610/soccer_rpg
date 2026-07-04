@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>サッカーせいちょうRPG - スプリント1（仕様変更版）</title>
+    <title>サッカーせいちょうRPG - スプリント1（ゲージ＆進化対応版）</title>
     <style>
-        /* 全体のデザイン（サッカー場をイメージした緑ベース） */
         body {
             font-family: 'Helvetica Neue', Arial, sans-serif;
             background-color: #1b5e20;
@@ -21,7 +20,6 @@
             margin-bottom: 10px;
         }
 
-        /* カード型レイアウト */
         .card {
             background: rgba(255, 255, 255, 0.1);
             padding: 20px;
@@ -32,14 +30,44 @@
             border: 1px solid rgba(255,255,255,0.2);
         }
 
-        /* プレイヤーキャラクターの表示エリア */
+        /* プレイヤーキャラクターの表示エリア（画像と絵文字の両方に対応） */
+        .character-container {
+            margin: 15px 0;
+            min-height: 100px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
         .character-area {
-            font-size: 70px; /* ★ステップ3でここをお子さんのイラスト画像に差し替えます */
-            margin: 10px 0;
             animation: bounce 2s infinite ease-in-out;
         }
 
-        /* ボタンの共通スタイル */
+        /* 画像が表示されるときのスタイル */
+        .character-img {
+            width: 100px;
+            height: 100px;
+            object-fit: contain;
+        }
+
+        /* 画像がないときに代わりにでる絵文字のスタイル */
+        .character-emoji {
+            font-size: 70px;
+        }
+
+        /* ステージ（所属）バッジのハデなデザイン */
+        .stage-badge {
+            background-color: #00e5ff;
+            color: #0d1b2a;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            display: inline-block;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+
         button {
             background-color: #ff9800;
             border: none;
@@ -54,12 +82,17 @@
             margin: 5px;
         }
 
-        button:active {
+        button:disabled {
+            background-color: #78909c !important;
+            box-shadow: 0 4px 0 #455a64 !important;
+            cursor: not-allowed;
+        }
+
+        button:active:not(:disabled) {
             transform: translateY(4px);
             box-shadow: none;
         }
 
-        /* タイミング合わせのシュートゲージ */
         .gauge-container {
             width: 80%;
             height: 25px;
@@ -72,26 +105,24 @@
             display: none;
         }
 
-        /* ゲージ内のヒットエリア（ここを狙う！） */
         .sweet-spot {
             position: absolute;
             left: 70%;
             width: 15%;
             height: 100%;
-            background-color: #ff1744; /* 赤いゾーン */
+            background-color: #ff1744;
         }
 
-        /* 左右にビュンビュン動くバー */
         .gauge-bar {
             height: 100%;
             width: 8px;
             background-color: #333;
             position: absolute;
             left: 0;
+            /* ★JSからコントロールしやすいようにアニメーション名を分離 */
             animation: moveBar 1.2s infinite linear alternate;
         }
 
-        /* 各種ログの表示エリア */
         .log-box {
             background: #0d1b2a;
             padding: 12px;
@@ -103,7 +134,6 @@
             text-align: left;
         }
 
-        /* アニメーションの定義 */
         @keyframes bounce {
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-10px); }
@@ -111,7 +141,7 @@
 
         @keyframes moveBar {
             0% { left: 0%; }
-            100% { left: 100%; }
+            100% { left: 96%; } /* 突き抜け防止調整 */
         }
     </style>
 </head>
@@ -120,8 +150,14 @@
     <h1>⚽️ サッカーせいちょうRPG ⚽️</h1>
 
     <div class="card">
+        <div class="stage-badge" id="txt-stage">Jリーグへん</div>
+        
         <h2>なまえ：<span id="txt-name" style="color: #00e5ff;">？？？</span> 選手</h2>
-        <div class="character-area" id="char-avatar">👦</div>
+        
+        <div class="character-container">
+            <div class="character-area" id="char-box">
+                </div>
+        </div>
         
         <p style="font-size: 16px; font-weight: bold; line-height: 1.6;">
             レベル: <span id="txt-level" style="color: #ffeb3b; font-size: 22px;">1</span><br>
@@ -137,12 +173,12 @@
     <div class="card">
         <h3>ほうこく広場（AIかんとく）</h3>
         <button id="btn-voice" onclick="startSpeech()">🎙 れんしゅうを声でほうこく！</button>
-        <div class="log-box" id="voice-log">上のボタンをおして、「シュートのれんしゅうをしたよ！」などとしゃべってね！がんばったことにあわせてステータスが上がるよ！</div>
+        <div class="log-box" id="voice-log">上のボタンをおして、「シュートのれんしゅうをしたよ！」などとしゃべってね！</div>
     </div>
 
     <div class="card">
-        <h3>VS 最初のライバルチーム</h3>
-        <button id="btn-battle-init" onclick="readyBattle()" style="background-color: #d32f2f; box-shadow: 0 4px 0 #b71c1c;">しあいをはじめる！</button>
+        <h3>VS ライバルチーム</h3>
+        <button id="btn-battle-init" onclick="readyBattle()" style="background-color: #d32f2f; box-shadow: 0 4px 0 #b71c1c;">しあいはじめる！</button>
         
         <div class="gauge-container" id="gauge-box">
             <div class="sweet-spot"></div>
@@ -167,35 +203,24 @@
             money: 0
         };
 
-        // ページが開いた瞬間にデータをロード＆名前チェック
         window.onload = function() {
             const savedData = localStorage.getItem('soccer_rpg_save');
             if (savedData) {
                 playerData = JSON.parse(savedData);
             }
-            
-            // 名前がまだ登録されていない場合は入力を促す
             if (!playerData.name) {
-                setTimeout(() => {
-                    askName();
-                }, 500); // 画面がパッと開いてからポップアップを出すやさしさ設計
+                setTimeout(() => { askName(); }, 500);
             } else {
                 updateUI();
             }
         };
 
-        // 名前を入力してもらう関数
         function askName() {
             let inputName = prompt("きみの なまえを おしえてね！", "あすき");
-            if (inputName === null || inputName.trim() === "") {
-                playerData.name = "あすき"; // キャンセルされた場合のデフォルト名
-            } else {
-                playerData.name = inputName;
-            }
+            playerData.name = (inputName === null || inputName.trim() === "") ? "あすき" : inputName;
             saveGame();
         }
 
-        // 手動で名前を変更する用の関数
         function changeName() {
             let inputName = prompt("新しい なまえを おしえてね！", playerData.name);
             if (inputName !== null && inputName.trim() !== "") {
@@ -204,7 +229,7 @@
             }
         }
 
-        // 画面の数字を最新の状態に更新する関数
+        // 画面を更新する関数（ステージとキャラクターの進化ロジックを統合）
         function updateUI() {
             document.getElementById('txt-name').innerText = playerData.name;
             document.getElementById('txt-level').innerText = playerData.level;
@@ -213,29 +238,58 @@
             document.getElementById('txt-technique').innerText = playerData.technique;
             document.getElementById('txt-stamina').innerText = playerData.stamina;
             document.getElementById('txt-money').innerText = playerData.money;
+
+            // ★キャラクターとステージの進化判定ロジック
+            const stageBadge = document.getElementById('txt-stage');
+            const charBox = document.getElementById('char-box');
+            
+            let imageSrc = "";
+            let fallbackEmoji = "";
+
+            if (playerData.level >= 20) {
+                // 【ステージ3：クリア後】
+                stageBadge.innerText = "🏆 せかいチャンピオン！";
+                stageBadge.style.backgroundColor = "#ffd700"; // ゴールド
+                imageSrc = "avatar_clear.png";
+                fallbackEmoji = "👑🏆";
+            } else if (playerData.level >= 10) {
+                // 【ステージ2：ワールドカップ編】
+                stageBadge.innerText = "🌎 ワールドカップへん";
+                stageBadge.style.backgroundColor = "#ff4081"; // ピンク・情熱
+                imageSrc = "avatar_w.png";
+                fallbackEmoji = "🇯🇵🏃‍♂️";
+            } else {
+                // 【ステージ1：Jリーグ編】
+                stageBadge.innerText = "⚽️ Jリーグへん";
+                stageBadge.style.backgroundColor = "#00e5ff"; // ブルー
+                imageSrc = "avatar_j.png";
+                fallbackEmoji = "👦";
+            }
+
+            // 画像の読み込みとフォールバックの処理（大人のクリーンコーディング）
+            charBox.innerHTML = `<img src="${imageSrc}" class="character-img" onerror="this.style.display='none'; document.getElementById('fallback-id').style.display='block';">
+                                 <span id="fallback-id" class="character-emoji" style="display:none;">${fallbackEmoji}</span>`;
+            
+            // 画像が無いときは最初からエラーハンドルが走るため、安全に絵文字が表示されます
         }
 
-        // データをローカルに保存する関数
         function saveGame() {
             localStorage.setItem('soccer_rpg_save', JSON.stringify(playerData));
             updateUI();
         }
 
-        // --- 2. 音声認識（Web Speech API）とAI監督（リアルタイム・手動停止ハイブリッド版） ---
+        // --- 2. 音声認識（リアルタイム・手動停止ハイブリッド版） ---
         let recognition = null;
         let isListening = false;
-        let latestTranscript = ""; // 喋った内容をリアルタイムに保存するキャッシュ変数
-        let isProcessed = false;   // 二重処理を防止するためのフラグ
+        let latestTranscript = "";
+        let isProcessed = false;
 
         function startSpeech() {
             const voiceBtn = document.getElementById('btn-voice');
             const voiceLog = document.getElementById('voice-log');
 
-            // 【手動停止】もし、すでにききとり中なら、ボタン押下で手動ストップ
             if (isListening && recognition) {
-                recognition.stop(); // マイクを止める
-                
-                // まだAIの処理が走っていなければ、その瞬間のキャッシュ文字を使って強制実行
+                recognition.stop();
                 if (!isProcessed) {
                     isProcessed = true;
                     if (latestTranscript.trim() !== "") {
@@ -247,7 +301,6 @@
                 return;
             }
 
-            // 初回だけインスタンスを作成して設定
             if (!recognition) {
                 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
                 if (!SpeechRecognition) {
@@ -256,54 +309,44 @@
                 }
                 recognition = new SpeechRecognition();
                 recognition.lang = 'ja-JP';
-                recognition.interimResults = true; // ★ここをtrueにしてリアルタイム取得にする
+                recognition.interimResults = true;
                 recognition.maxAlternatives = 1;
 
-                // ききとりが本当に始まったときの処理
                 recognition.onstart = function() {
                     isListening = true;
-                    isProcessed = false; // フラグをリセット
-                    latestTranscript = ""; // キャッシュをリセット
+                    isProcessed = false;
+                    latestTranscript = "";
                     voiceBtn.innerText = "🛑 話しおわったらここをおす！";
                     voiceBtn.style.backgroundColor = "#d32f2f";
                     voiceBtn.style.boxShadow = "0 4px 0 #b71c1c";
                     voiceLog.innerText = "スマホにむかって話してね！話し終わったら、上の赤いボタンをおしてね。";
                 };
 
-                // 話している最中に、文字を検知するたびに何度も走るイベント
                 recognition.onresult = function(event) {
                     let resultText = "";
                     let isFinal = false;
 
                     for (let i = event.resultIndex; i < event.results.length; i++) {
                         resultText += event.results[i][0].transcript;
-                        if (event.results[i].isFinal) {
-                            isFinal = true; // ブラウザ側が自動で文章の終わりを検知したフラグ
-                        }
+                        if (event.results[i].isFinal) { isFinal = true; }
                     }
                     
-                    // 最新の文字を常にキャッシュにストック
                     latestTranscript = resultText;
                     
-                    // 【自動停止パターン】ボタンを押さずに、自動で文章が確定した場合
                     if (isFinal && !isProcessed) {
                         isProcessed = true;
                         processAIWithText(latestTranscript);
                     } else if (!isProcessed) {
-                        // 【リアルタイム演出】話している最中は、文字を画面にカタカタ表示する！
                         voiceLog.innerHTML = `<strong>ききとり中：</strong> 「<span style="color: #00e5ff;">${latestTranscript}</span>」`;
                     }
                 };
 
-                // エラーが起きたときの処理
                 recognition.onerror = function(event) {
-                    // 手動停止したときに発生する aborted は正常なのでエラー表示しない
                     if (event.error !== 'aborted' && !isProcessed) {
                         voiceLog.innerText = "うまくききとれなかったよ。(error: " + event.error + ")";
                     }
                 };
 
-                // 音声認識が完全に終了したときの片付け処理（手動・自動どちらでも最後にここを通る）
                 recognition.onend = function() {
                     isListening = false;
                     voiceBtn.innerText = "🎙 れんしゅうを声でほうこく！";
@@ -312,15 +355,9 @@
                 };
             }
 
-            // 聞き取りスタート
-            try {
-                recognition.start();
-            } catch (e) {
-                console.log(e);
-            }
+            try { recognition.start(); } catch (e) { console.log(e); }
         }
 
-        // 🤖 AI監督のステータスアップ処理（独立した関数にリファクタリング）
         function processAIWithText(text) {
             const voiceLog = document.getElementById('voice-log');
             voiceLog.innerHTML = `<strong>ききとったよ：</strong> 「${text}」<br><br>⏳ AIかんとくがかんがえ中...`;
@@ -356,6 +393,13 @@
 
         // --- 3. タイミング合わせシュートバトル ---
         function readyBattle() {
+            const indicator = document.getElementById('indicator');
+            
+            // ★【仕様変更対応】次の試合を始めるときに、アニメーションを最初から再開させる
+            indicator.style.animation = 'none';
+            indicator.offsetHeight; // リフローを起こして強制リセット
+            indicator.style.animation = 'moveBar 1.2s infinite linear alternate';
+
             document.getElementById('btn-battle-init').style.display = 'none';
             document.getElementById('gauge-box').style.display = 'block';
             document.getElementById('btn-shoot').style.display = 'inline-block';
@@ -366,12 +410,17 @@
             const indicator = document.getElementById('indicator');
             const gaugeBox = document.getElementById('gauge-box');
             
+            // 現在のバーの位置（左からのピクセル数）を取得
             const computedStyle = window.getComputedStyle(indicator);
             const leftStr = computedStyle.getPropertyValue('left');
             const parentWidth = gaugeBox.offsetWidth;
             const currentPercent = (parseFloat(leftStr) / parentWidth) * 100;
 
-            document.getElementById('gauge-box').style.display = 'none';
+            // ★【ここが今回のキモ】アニメーションを止め、その場にバーを固定して残す！
+            indicator.style.animation = 'none';
+            indicator.style.left = leftStr;
+
+            // ボタンだけを元に戻し、ゲージ（gauge-box）は非表示（none）にせず残す！
             document.getElementById('btn-shoot').style.display = 'none';
             document.getElementById('btn-battle-init').style.display = 'inline-block';
 
@@ -379,14 +428,11 @@
             battleLog.innerText = "ゴゴゴゴ… ほのおのシュートをはなった！！";
 
             setTimeout(() => {
-                // 赤いゾーン（70%〜85%の位置）に入っているか判定
                 if (currentPercent >= 68 && currentPercent <= 87) {
-                    // 【仕様変更】ジャストミート時は、キックとテクニックが高いほど賞金が跳ね上がる！
                     const prize = 50 + (playerData.kick * 2) + playerData.technique;
                     playerData.money += prize;
                     battleLog.innerHTML = `🎉 <strong>ジャストミート！さいきょうシュート！！</strong><br>あいてのキーパーをふっとばしてゴール！ <strong>${prize}えん</strong> ゲットした！`;
                 } else {
-                    // タイミングを外しても、レベルとスピードが高ければ確率で追いついてゴールできる！
                     const winChance = playerData.level + playerData.speed;
                     if (Math.random() * winChance > 8) {
                         playerData.money += 20;
@@ -399,13 +445,12 @@
             }, 1200);
         }
 
-        // データを初期化する
         function resetData() {
             if (confirm('ほんとうにデータをさいしょからにする？')) {
                 localStorage.removeItem('soccer_rpg_save');
                 playerData = { name: "", level: 1, kick: 10, speed: 10, technique: 10, stamina: 10, money: 0 };
-                alert('リセットしました！ページを読みなおして新しい名前を入力してね。');
-                location.reload(); // ページをリロードして名前入力ポップアップを出す
+                alert('リセットしました！新しい名前を入力してね。');
+                location.reload();
             }
         }
     </script>
