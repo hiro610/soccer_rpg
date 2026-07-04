@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>サッカーせいちょうRPG - スプリント1（完全バグ修正版）</title>
+    <title>サッカーせいちょうRPG - マップ画面版</title>
     <style>
-        /* アプリ全体でズーム・テキスト選択を完全にシャットアウト */
+        /* ズーム防止 */
         html, body, button, .card, .mini-stadium, .glass-box, .gauge-container, .gauge-bar, .sweet-spot, .gold-spot {
             touch-action: manipulation !important;
-            -webkit-user-select: none; 
-            user-select: none;
+            -webkit-user-select: none; user-select: none;
         }
 
         body {
@@ -17,421 +16,230 @@
             background-color: #1b5e20;
             color: #ffffff;
             text-align: center;
-            padding: 20px;
-            margin: 0;
+            padding: 10px; margin: 0;
+            padding-bottom: 30px;
         }
 
-        h1 {
-            font-size: 24px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-            margin-bottom: 10px;
-        }
-
-        .card-outside-header {
-            max-width: 400px;
-            margin: 0 auto 10px auto;
-            text-align: center;
-        }
-
-        .name-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 10px;
-            margin-top: 5px;
+        /* 共通ヘッダー（常に上部に表示） */
+        .header-status {
+            background: rgba(13, 27, 42, 0.9);
+            padding: 10px;
+            position: sticky; top: 0; z-index: 100;
+            border-bottom: 2px solid #00e5ff;
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 14px;
         }
 
         .card {
             background: rgba(255, 255, 255, 0.1);
-            padding: 20px;
-            border-radius: 15px;
-            margin: 15px auto;
-            max-width: 400px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            padding: 15px; border-radius: 15px; margin: 15px auto;
+            max-width: 400px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
             border: 1px solid rgba(255,255,255,0.2);
-            position: relative;
-            overflow: hidden;
         }
 
-        .status-card {
-            height: 480px;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
-            align-items: center;
-            padding: 15px;
-        }
+        /* ★ 新設：画面切り替え（SPA）用のクラス */
+        .screen { display: none; } /* 基本はすべて隠す */
+        .screen.active { display: block; } /* activeがついた画面だけ表示する */
 
-        .card-background-img {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            z-index: 1;
+        /* マップ画面のボタンデザイン */
+        .map-buttons { display: flex; flex-direction: column; gap: 15px; margin-top: 20px;}
+        .btn-map { 
+            background: linear-gradient(135deg, #4caf50, #2e7d32);
+            padding: 20px; font-size: 18px; border-radius: 12px;
+            border: 2px solid #a5d6a7; display: flex; align-items: center; justify-content: center; gap: 10px;
         }
+        .btn-map.shop { background: linear-gradient(135deg, #9c27b0, #6a1b9a); border-color: #ce93d8; }
+        .btn-map.match { background: linear-gradient(135deg, #f44336, #c62828); border-color: #ef9a9a; }
 
-        .card-content {
-            position: relative;
-            z-index: 2;
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
+        .btn-back { background-color: #78909c; padding: 10px; width: 100%; margin-top: 20px; font-size: 14px;}
 
-        .glass-box {
-            background: rgba(13, 27, 42, 0.8);
-            backdrop-filter: blur(6px);
-            -webkit-backdrop-filter: blur(6px);
-            padding: 15px 20px;
-            border-radius: 12px;
-            width: 85%;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
-            border: 1px solid rgba(255,255,255,0.1);
-            margin-bottom: 5px;
-        }
+        button { background-color: #ff9800; border: none; color: white; padding: 10px 20px; font-size: 15px; font-weight: bold; border-radius: 25px; cursor: pointer; box-shadow: 0 4px 0 #e65100; transition: 0.1s; margin: 5px; }
+        button:disabled { background-color: #78909c !important; box-shadow: 0 4px 0 #455a64 !important; }
+        button:active:not(:disabled) { transform: translateY(4px); box-shadow: none; }
 
-        .character-emoji-area {
-            font-size: 80px;
-            margin-bottom: 120px;
-            animation: bounce 2s infinite ease-in-out;
-        }
+        /* ステータスカード */
+        .status-card { height: 380px; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; padding: 15px; position: relative; overflow: hidden; margin-top: 10px;}
+        .card-background-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; }
+        .card-content { position: relative; z-index: 2; width: 100%; display: flex; flex-direction: column; align-items: center; }
+        .glass-box { background: rgba(13, 27, 42, 0.8); backdrop-filter: blur(6px); padding: 10px 15px; border-radius: 12px; width: 85%; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 5px; }
+        .stage-badge { background-color: #00e5ff; color: #0d1b2a; padding: 5px 16px; border-radius: 20px; font-size: 14px; font-weight: bold; display: inline-block; }
 
-        .stage-badge {
-            background-color: #00e5ff;
-            color: #0d1b2a;
-            padding: 5px 16px;
-            border-radius: 20px;
-            font-size: 14px;
-            font-weight: bold;
-            display: inline-block;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-        }
+        /* ショップ */
+        .shop-item { display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.1); padding: 8px; margin: 5px 0; border-radius: 6px; text-align: left; font-size: 13px;}
+        .shop-btn { padding: 5px 10px; font-size: 12px; margin: 0; background-color: #4caf50; box-shadow: 0 3px 0 #388e3c; }
 
-        button {
-            background-color: #ff9800;
-            border: none;
-            color: white;
-            padding: 12px 24px;
-            font-size: 16px;
-            font-weight: bold;
-            border-radius: 25px;
-            cursor: pointer;
-            box-shadow: 0 4px 0 #e65100;
-            transition: 0.1s;
-            margin: 5px;
-        }
+        /* 試合UI */
+        .mini-stadium { width: 90%; height: 100px; background: linear-gradient(#2e7d32 80%, #1b5e20 100%); border: 2px solid #fff; border-radius: 10px; margin: 5px auto; position: relative; overflow: hidden; }
+        .stadium-line { position: absolute; top: 0; left: 50%; width: 2px; height: 100%; background: rgba(255,255,255,0.3); }
+        .jump-line-marker { position: absolute; top: 0; left: 26%; width: 4px; height: 100%; background-color: #ff1744; display: none; z-index: 5; }
+        .stamina-header { font-size: 12px; font-weight: bold; width: 80%; margin: 5px auto 2px auto; display: flex; justify-content: space-between; }
+        .stamina-container-ui { width: 80%; height: 12px; background-color: #333; border-radius: 6px; margin: 0 auto 10px auto; border: 1px solid #fff; overflow: hidden; }
+        .stamina-bar-ui { width: 100%; height: 100%; background: linear-gradient(to right, #4caf50, #8bc34a); }
+        .match-avatar { position: absolute; bottom: 15px; left: 10%; width: 40px; height: 40px; font-size: 35px; transition: left 0.1s ease-out, bottom 0.12s ease-out; z-index: 10; }
+        .match-enemy { position: absolute; bottom: 15px; left: 110%; width: 40px; height: 40px; font-size: 35px; z-index: 9; transition: transform 0.15s ease-out; }
+        .gauge-container { width: 80%; height: 20px; background-color: #ddd; margin: 10px auto; border-radius: 10px; position: relative; overflow: hidden; border: 2px solid #fff; }
+        .sweet-spot { position: absolute; left: 70%; width: 15%; height: 100%; background-color: #ff1744; z-index: 2; }
+        .gold-spot { position: absolute; width: 4%; height: 100%; background-color: #ffd700; z-index: 3; }
+        .gauge-bar { height: 100%; width: 8px; background-color: #333; position: absolute; left: 0; z-index: 4; }
+        .mash-bar { height: 100%; width: 0%; background: linear-gradient(to right, #ffeb3b, #ff9800); transition: width 0.05s linear; }
 
-        button:disabled {
-            background-color: #78909c !important;
-            box-shadow: 0 4px 0 #455a64 !important;
-            cursor: not-allowed;
-        }
+        .log-box { background: #0d1b2a; padding: 12px; border-radius: 8px; min-height: 40px; margin-top: 10px; font-size: 13px; border-left: 4px solid #00e5ff; text-align: left; line-height: 1.5; }
+        .report-box { border: 2px dashed #ffeb3b; padding: 10px; border-radius: 8px; margin-top: 10px; background: rgba(255,235,59,0.05); }
 
-        button:active:not(:disabled) {
-            transform: translateY(4px);
-            box-shadow: none;
-        }
+        #result-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); z-index: 9999; justify-content: center; align-items: center; flex-direction: column; padding: 20px; box-sizing: border-box; }
+        #result-announcement { font-size: 46px; font-weight: 900; margin-bottom: 20px; letter-spacing: 2px; }
+        #result-sub-box { background: rgba(255, 255, 255, 0.1); border: 2px solid rgba(255, 255, 255, 0.3); padding: 20px; border-radius: 15px; max-width: 350px; font-size: 16px; line-height: 1.6; }
 
-        .mini-stadium {
-            width: 90%;
-            height: 120px;
-            background: linear-gradient(#2e7d32 80%, #1b5e20 100%);
-            border: 2px solid #fff;
-            border-radius: 10px;
-            margin: 5px auto 10px auto;
-            position: relative;
-            overflow: hidden;
-            box-shadow: inset 0 0 20px rgba(0,0,0,0.4);
-        }
-
-        .stadium-line {
-            position: absolute;
-            top: 0;
-            left: 50%;
-            width: 2px;
-            height: 100%;
-            background: rgba(255,255,255,0.3);
-        }
-
-        .jump-line-marker {
-            position: absolute;
-            top: 0;
-            left: 26%; 
-            width: 4px;
-            height: 100%;
-            background-color: #ff1744;
-            box-shadow: 0 0 8px #ff1744;
-            display: none;
-            z-index: 5;
-        }
-
-        .stamina-header {
-            font-size: 12px;
-            font-weight: bold;
-            text-align: left;
-            width: 80%;
-            margin: 5px auto 2px auto;
-            display: flex;
-            justify-content: space-between;
-        }
-        .stamina-container-ui {
-            width: 80%;
-            height: 12px;
-            background-color: #333;
-            border-radius: 6px;
-            margin: 0 auto 10px auto;
-            border: 1px solid #fff;
-            overflow: hidden;
-        }
-        .stamina-bar-ui {
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(to right, #4caf50, #8bc34a);
-        }
-
-        .match-avatar {
-            position: absolute;
-            bottom: 15px;
-            left: 10%;
-            width: 50px;
-            height: 50px;
-            font-size: 40px;
-            transition: left 0.1s ease-out, bottom 0.12s ease-out;
-            z-index: 10;
-        }
-        .match-avatar img { width: 100%; height: 100%; object-fit: contain; }
-
-        /* 敵：JSで物理計算するためtransitionはtransformのみ */
-        .match-enemy {
-            position: absolute;
-            bottom: 15px;
-            left: 110%; 
-            width: 50px;
-            height: 50px;
-            font-size: 40px;
-            z-index: 9;
-            transition: transform 0.15s ease-out; 
-        }
-
-        .gauge-container {
-            width: 80%;
-            height: 20px;
-            background-color: #ddd;
-            margin: 10px auto;
-            border-radius: 10px;
-            position: relative;
-            overflow: hidden;
-            border: 2px solid #fff;
-        }
-
-        .sweet-spot {
-            position: absolute;
-            left: 70%;
-            width: 15%; 
-            height: 100%;
-            background-color: #ff1744;
-            z-index: 2;
-        }
-
-        .gold-spot {
-            position: absolute;
-            width: 4%;
-            height: 100%;
-            background-color: #ffd700;
-            box-shadow: 0 0 8px #ffd700;
-            z-index: 3;
-        }
-
-        .gauge-bar {
-            height: 100%;
-            width: 8px;
-            background-color: #333;
-            position: absolute;
-            left: 0;
-            z-index: 4;
-        }
-
-        .mash-bar {
-            height: 100%;
-            width: 0%;
-            background: linear-gradient(to right, #ffeb3b, #ff9800);
-            transition: width 0.05s linear;
-        }
-
-        .log-box {
-            background: #0d1b2a;
-            padding: 12px;
-            border-radius: 8px;
-            min-height: 40px;
-            margin-top: 10px;
-            font-size: 14px;
-            border-left: 4px solid #00e5ff;
-            text-align: left;
-            line-height: 1.5;
-        }
-
-        .report-box {
-            border: 2px dashed #ffeb3b;
-            padding: 10px;
-            border-radius: 8px;
-            margin-top: 10px;
-            background: rgba(255,235,59,0.05);
-        }
-
-        #result-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.9);
-            z-index: 9999;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-
-        #result-announcement {
-            font-size: 46px;
-            font-weight: 900;
-            margin-bottom: 20px;
-            letter-spacing: 2px;
-        }
-
-        #result-sub-box {
-            background: rgba(255, 255, 255, 0.1);
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            padding: 20px;
-            border-radius: 15px;
-            max-width: 350px;
-            font-size: 16px;
-            line-height: 1.6;
-        }
-
-        @keyframes popIn {
-            0% { transform: scale(0.4); opacity: 0; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-        @keyframes goalFlash {
-            0% { transform: scale(1); text-shadow: 0 0 10px #fff, 0 0 20px #ffeb3b, 0 0 30px #ff9800; }
-            100% { transform: scale(1.04); text-shadow: 0 0 20px #fff, 0 0 40px #ff1744, 0 0 60px #ff1744; }
-        }
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-        }
-        @keyframes moveBar {
-            0% { left: 0%; }
-            100% { left: 96%; }
-        }
+        @keyframes popIn { 0% { transform: scale(0.4); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes goalFlash { 0% { transform: scale(1); text-shadow: 0 0 10px #fff, 0 0 20px #ffeb3b, 0 0 30px #ff9800; } 100% { transform: scale(1.04); text-shadow: 0 0 20px #fff, 0 0 40px #ff1744, 0 0 60px #ff1744; } }
+        @keyframes moveBar { 0% { left: 0%; } 100% { left: 96%; } }
     </style>
 </head>
 <body>
 
-    <h1>⚽️ サッカーせいちょうRPG ⚽️</h1>
-
-    <div class="card-outside-header">
-        <div class="stage-badge" id="txt-stage">Jリーグへん</div>
-        <div class="name-container">
-            <h2 style="margin: 0; font-size: 22px; text-shadow: 1px 1px 3px rgba(0,0,0,0.8);">なまえ：<span id="txt-name" style="color: #00e5ff;">？？？</span> 選手</h2>
-            <button onclick="changeName()" style="background-color: #78909c; box-shadow: 0 4px 0 #455a64; padding: 6px 14px; font-size: 12px; margin: 0;">なまえをかえる</button>
-        </div>
+    <div class="header-status">
+        <div style="font-weight: bold; color: #00e5ff;">👤 <span id="txt-name-header">？？？</span></div>
+        <div style="color: #ffeb3b; font-weight: bold;">💰 <span id="txt-money-header">0</span>円</div>
+        <div style="color: #4caf50; font-weight: bold;">🏆 Lv.<span id="txt-level-header">1</span></div>
     </div>
 
-    <div class="card status-card" id="status-card-element">
-        <div id="bg-img-container"></div>
-        <div class="card-content" id="fallback-emoji-container" style="display: none; height: 100%; justify-content: center;">
-            <div class="character-emoji-area" id="txt-fallback-emoji">👦</div>
-        </div>
-        <div class="card-content" style="margin-top: auto;">
-            <div class="glass-box">
-                <p style="font-size: 15px; font-weight: bold; line-height: 1.6; margin: 0; text-align: left; padding-left: 10px;">
-                    レベル: <span id="txt-level" style="color: #ffeb3b; font-size: 20px;">1</span><br>
-                    ⚽️ キック: <span id="txt-kick">10</span><br>
-                    ⚡️ スピード: <span id="txt-speed">10</span><br>
-                    🪄 テクニック: <span id="txt-technique">10</span><br>
-                    ❤️ スタミナ: <span id="txt-stamina">10</span><br>
-                    <span style="color: #ffeb3b;">💰 もってるおかね: <span id="txt-money">0</span> 円</span>
-                </p>
-            </div>
-        </div>
-    </div>
-
-    <div class="card">
-        <h3>ほうこく広場（AIかんとく）</h3>
-        <button id="btn-voice" onclick="startSpeech()">🎙 れんしゅうを声でほうこく！</button>
-        <div class="log-box" id="voice-log">上のボタンをおして、「シュートのれんしゅうをしたよ！」などとしゃべってね！</div>
-        <div id="confirm-buttons-area" style="display: none; margin-top: 15px;">
-            <button id="btn-confirm-ok" onclick="commitVoiceResult()" style="background-color: #4caf50; box-shadow: 0 4px 0 #388e3c; padding: 14px 28px; font-size: 18px;">👍 これでOK！</button>
-            <button id="btn-confirm-retry" onclick="retryVoiceInput()" style="background-color: #f44336; box-shadow: 0 4px 0 #d32f2f; padding: 14px 28px; font-size: 18px;">🔄 やりなおす</button>
-        </div>
-    </div>
-
-    <div class="card">
-        <h3>VS ライバルチーム（3れんコンボ！）</h3>
-        
-        <div class="stamina-header">
-            <span>しあいちゅうのスタミナ</span>
-            <span id="txt-match-stamina-val">10/10</span>
-        </div>
-        <div class="stamina-container-ui">
-            <div class="stamina-bar-ui" id="ui-stamina-bar"></div>
-        </div>
-
-        <div class="mini-stadium">
-            <div class="stadium-line"></div>
-            <div class="jump-line-marker" id="ui-jump-marker"></div>
-            <div class="match-avatar" id="stadium-player">👦</div>
-            <div class="match-enemy" id="stadium-enemy">🏃‍♂️</div>
-        </div>
-
-        <div id="game-mechanic-zone" style="min-height: 40px; margin: 5px 0;">
-            <div id="ui-box-dribble" style="display: none;">
-                <div class="gauge-container"><div class="mash-bar" id="dribble-mash-bar"></div></div>
-            </div>
-            <div id="ui-box-jump" style="display: none;">
-                <div style="font-size:18px; font-weight:bold; color:#ffeb3b; height:24px;" id="jump-signal-text">あいてが走ってきた！</div>
-            </div>
-            <div id="ui-box-shoot" style="display: none;">
-                <div class="gauge-container" id="final-gauge-box">
-                    <div class="sweet-spot" id="ui-sweet-spot"></div>
-                    <div class="gold-spot" id="ui-gold-spot"></div>
-                    <div class="gauge-bar" id="final-indicator"></div>
+    <div id="screen-map" class="screen active">
+        <div class="card status-card" id="status-card-element">
+            <div id="bg-img-container"></div>
+            <div class="card-content" style="margin-top: auto;">
+                <div class="stage-badge" id="txt-stage" style="margin-bottom: 5px;">Jリーグへん</div>
+                <div class="glass-box">
+                    <p style="font-size: 13px; font-weight: bold; line-height: 1.5; margin: 0; text-align: left;">
+                        ⚽️ キック: <span id="txt-kick">10</span> | ⚡️ スピード: <span id="txt-speed">10</span><br>
+                        🪄 テクニック: <span id="txt-technique">10</span> | ❤️ スタミナ: <span id="txt-stamina">10</span><br>
+                        <span style="color: #ff9800;">🐾 ペット: <span id="txt-pet">なし</span></span>
+                    </p>
                 </div>
             </div>
         </div>
 
-        <div id="battle-buttons-area">
-            <button id="btn-game-main" onclick="startMatchCombo()" style="background-color: #d32f2f; box-shadow: 0 4px 0 #b71c1c; width: 85%;">しあいはじめる！</button>
+        <div class="map-buttons">
+            <button class="btn-map" onclick="showScreen('training')">🎙️ AIれんしゅう場へ行く</button>
+            <button class="btn-map shop" onclick="showScreen('shop')">🍇 まほうのショップへ行く</button>
+            <button class="btn-map match" onclick="showScreen('match')">🔥 スタジアムでしあいをする！</button>
         </div>
         
-        <div class="log-box" id="battle-log">ドリブル ➔ ジャンプ ➔ シュートの3連コンボできめろ！</div>
+        <button onclick="changeName()" style="background-color: transparent; box-shadow: none; font-size: 12px; text-decoration: underline; margin-top: 20px;">なまえをかえる</button>
+        <button onclick="resetData()" style="background: none; box-shadow: none; font-size: 10px; color: #aaa;">データをさいしょからにする</button>
+    </div>
+
+    <div id="screen-training" class="screen">
+        <div class="card">
+            <h3>🎙️ ほうこく広場（AIかんとく）</h3>
+            <button id="btn-voice" onclick="startSpeech()">れんしゅうを声でほうこく！</button>
+            <div class="log-box" id="voice-log">「シュートの練習をしたよ！」と教えてね！本物のAIが判定するぞ！</div>
+            <div id="confirm-buttons-area" style="display: none; margin-top: 15px;">
+                <button id="btn-confirm-ok" onclick="commitVoiceResult()" style="background-color: #4caf50; box-shadow: 0 4px 0 #388e3c;">👍 これでOK！</button>
+                <button id="btn-confirm-retry" onclick="retryVoiceInput()" style="background-color: #f44336; box-shadow: 0 4px 0 #d32f2f;">🔄 やりなおす</button>
+            </div>
+            
+            <h4 style="font-size: 12px; margin-top: 15px; margin-bottom: 5px; text-align: left;">📖 れんしゅうのキロク（データベース）</h4>
+            <div class="history-box" id="history-box" style="max-height: 150px; overflow-y: scroll; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 8px; font-size: 12px; text-align: left; border: 1px solid #555;">記録はまだありません。</div>
+        </div>
+        <button class="btn-back" onclick="showScreen('map')">🔙 マップにもどる</button>
+    </div>
+
+    <div id="screen-shop" class="screen">
+        <div class="card">
+            <h3>🍇 まほうのショップ</h3>
+            <p style="font-size: 13px;">もっているお金でアイテムを買って強くなろう！</p>
+            <div style="background: #3e2723; padding: 10px; border-radius: 8px; border: 2px solid #ffeb3b;">
+                <div style="color: #ffeb3b; font-weight:bold; margin-bottom:5px;">ぶどう（ステータスUP）</div>
+                <div id="grape-shop-list"></div>
+                <div style="color: #ffeb3b; font-weight:bold; margin-top:10px; margin-bottom:5px;">おうえんペット</div>
+                <div id="pet-shop-list"></div>
+            </div>
+        </div>
+        <button class="btn-back" onclick="showScreen('map')">🔙 マップにもどる</button>
+    </div>
+
+    <div id="screen-match" class="screen">
+        <div class="card">
+            <h3>🔥 VS ライバルチーム</h3>
+            <div style="font-size: 13px; color: #ffeb3b; font-weight: bold; margin-bottom: 5px;">あいての強さ: Lv.<span id="txt-enemy-level">1</span></div>
+            
+            <div class="stamina-header">
+                <span>しあいちゅうのスタミナ <span id="txt-pet-bonus" style="color:#ff9800;"></span></span>
+                <span id="txt-match-stamina-val">10/10</span>
+            </div>
+            <div class="stamina-container-ui"><div class="stamina-bar-ui" id="ui-stamina-bar"></div></div>
+
+            <div class="mini-stadium">
+                <div class="stadium-line"></div>
+                <div class="jump-line-marker" id="ui-jump-marker"></div>
+                <div class="match-avatar" id="stadium-player"><img src="avatar_j.png" onerror="this.style.display='none';"></div>
+                <div class="match-enemy" id="stadium-enemy">🏃‍♂️</div>
+            </div>
+
+            <div id="game-mechanic-zone" style="min-height: 40px; margin: 5px 0;">
+                <div id="ui-box-dribble" style="display: none;"><div class="gauge-container"><div class="mash-bar" id="dribble-mash-bar"></div></div></div>
+                <div id="ui-box-jump" style="display: none;"><div style="font-size:16px; font-weight:bold; color:#ffeb3b; height:24px;" id="jump-signal-text">あいてが走ってきた！</div></div>
+                <div id="ui-box-shoot" style="display: none;">
+                    <div class="gauge-container" id="final-gauge-box">
+                        <div class="sweet-spot" id="ui-sweet-spot"></div><div class="gold-spot" id="ui-gold-spot"></div><div class="gauge-bar" id="final-indicator"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="battle-buttons-area">
+                <button id="btn-game-main" onclick="startMatchCombo()" style="background-color: #d32f2f; box-shadow: 0 4px 0 #b71c1c; width: 85%;">しあいはじめる！</button>
+            </div>
+            <div class="log-box" id="battle-log">ドリブル ➔ ジャンプ ➔ シュートの3連コンボできめろ！</div>
+        </div>
+        <button class="btn-back" onclick="showScreen('map')" id="btn-back-map">🔙 マップにもどる</button>
     </div>
 
     <div id="result-overlay">
         <div id="result-announcement">GOAL!!</div>
         <div id="result-sub-box"><p id="result-sub-text" style="margin: 0;"></p></div>
-        <button onclick="closeResultOverlay()" style="margin-top: 35px; font-size: 20px; padding: 14px 35px; background-color: #4caf50; box-shadow: 0 4px 0 #388e3c; position: relative; z-index: 10001;">つぎの試合へ！</button>
+        <button onclick="closeResultOverlay()" style="margin-top: 35px; font-size: 20px; padding: 14px 35px; background-color: #4caf50; position: relative; z-index: 10001;">つぎへ</button>
     </div>
 
-    <button onclick="resetData()" style="background: none; box-shadow: none; font-size: 10px; color: #aaa; margin-top: 30px;">データをさいしょからにする</button>
-
     <script>
-        // --- 1. グローバル変数とセーブデータの定義 ---
-        let playerData = { name: "", level: 1, kick: 10, speed: 10, technique: 10, stamina: 10, money: 0 };
+        // ==========================================
+        // ★★★ テスト用：Gemini APIキー ★★★
+        // ==========================================
+        const GEMINI_API_KEY = "AIzaSyA97Bpp7ezqsDM1JXxBn82XEHyuGDwtyT4";
+        
+        let playerData = { name: "", level: 1, kick: 10, speed: 10, technique: 10, stamina: 10, money: 0, pet: "なし", history: [] };
         let imageSrcGlobal = "avatar_j.png";
+
+        const GRAPES = [
+            { name: "みどりぶどう", price: 100, effect: "スタミナ+2", stat: "stamina", val: 2 },
+            { name: "あおぶどう", price: 200, effect: "テクニック+3", stat: "technique", val: 3 },
+            { name: "あかぶどう", price: 300, effect: "キック+4", stat: "kick", val: 4 },
+            { name: "きいろぶどう", price: 400, effect: "スピード+5", stat: "speed", val: 5 },
+            { name: "きんいろぶどう", price: 600, effect: "全能力+2", stat: "all", val: 2 },
+            { name: "黒ぶどう", price: 800, effect: "キック＆テク+5", stat: "kt", val: 5 },
+            { name: "ドラゴンぶどう", price: 1500, effect: "全能力+6", stat: "all", val: 6 }
+        ];
+        const PETS = [
+            { name: "おうえん犬", price: 500, desc: "ファール時のスタミナ減少を1防ぐ" },
+            { name: "ミニドラゴン", price: 2000, desc: "シュートゲージの速度を少し遅くする" }
+        ];
 
         window.onload = function() {
             const savedData = localStorage.getItem('soccer_rpg_save');
             if (savedData) { playerData = JSON.parse(savedData); }
+            if (!playerData.history) playerData.history = []; 
+            if (!playerData.pet) playerData.pet = "なし";
             if (!playerData.name) { setTimeout(() => { askName(); }, 500); } else { updateUI(); }
+            
+            renderShop();
+            renderHistory();
         };
+
+        // ★ 画面切り替え（SPA）ロジック
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+            document.getElementById('screen-' + screenId).classList.add('active');
+            updateUI();
+        }
 
         function askName() {
             let inputName = prompt("きみの なまえを おしえてね！", "あすき");
@@ -445,46 +253,85 @@
         }
 
         function updateUI() {
-            document.getElementById('txt-name').innerText = playerData.name;
-            document.getElementById('txt-level').innerText = playerData.level;
+            // ヘッダー更新
+            document.getElementById('txt-name-header').innerText = playerData.name;
+            document.getElementById('txt-money-header').innerText = playerData.money;
+            document.getElementById('txt-level-header').innerText = playerData.level;
+
+            // マップと試合のUI更新
+            document.getElementById('txt-level').innerText = playerData.level; 
+            document.getElementById('txt-enemy-level').innerText = playerData.level;
             document.getElementById('txt-kick').innerText = playerData.kick;
             document.getElementById('txt-speed').innerText = playerData.speed;
             document.getElementById('txt-technique').innerText = playerData.technique;
             document.getElementById('txt-stamina').innerText = playerData.stamina;
-            document.getElementById('txt-money').innerText = playerData.money;
+            document.getElementById('txt-pet').innerText = playerData.pet;
 
             const stageBadge = document.getElementById('txt-stage');
             const bgImgContainer = document.getElementById('bg-img-container');
-            const fallbackContainer = document.getElementById('fallback-emoji-container');
-            const fallbackEmoji = document.getElementById('txt-fallback-emoji');
             const stPlayer = document.getElementById('stadium-player');
             
-            let emojiText = "👦";
-
             if (playerData.level >= 20) {
                 stageBadge.innerText = "🏆 せかいチャンピオン！"; stageBadge.style.backgroundColor = "#ffd700";
-                imageSrcGlobal = "avatar_clear.png"; emojiText = "👑🏆";
+                imageSrcGlobal = "avatar_clear.png"; 
             } else if (playerData.level >= 10) {
                 stageBadge.innerText = "🌎 ワールドカップへん"; stageBadge.style.backgroundColor = "#ff4081";
-                imageSrcGlobal = "avatar_w.png"; emojiText = "🇯🇵🏃‍♂️";
+                imageSrcGlobal = "avatar_w.png"; 
             } else {
                 stageBadge.innerText = "⚽️ Jリーグへん"; stageBadge.style.backgroundColor = "#00e5ff";
-                imageSrcGlobal = "avatar_j.png"; emojiText = "👦";
+                imageSrcGlobal = "avatar_j.png"; 
             }
 
-            fallbackEmoji.innerText = emojiText;
-            fallbackContainer.style.display = 'none';
-
-            const htmlWithImage = `<img src="${imageSrcGlobal}" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                                   <span style="display:none;">${emojiText}</span>`;
-            stPlayer.innerHTML = htmlWithImage;
-
-            bgImgContainer.innerHTML = `<img src="${imageSrcGlobal}" class="card-background-img" onload="document.getElementById('fallback-emoji-container').style.display='none';" onerror="this.style.display='none'; document.getElementById('fallback-emoji-container').style.display='block';">`;
+            stPlayer.innerHTML = `<img src="${imageSrcGlobal}" onerror="this.style.display='none';">👦`;
+            bgImgContainer.innerHTML = `<img src="${imageSrcGlobal}" class="card-background-img" onerror="this.style.display='none';">`;
         }
 
         function saveGame() { localStorage.setItem('soccer_rpg_save', JSON.stringify(playerData)); updateUI(); }
 
-        // --- 2. 音声認識 ---
+        // --- ショップ ---
+        function renderShop() {
+            document.getElementById('grape-shop-list').innerHTML = GRAPES.map((g, i) => `
+                <div class="shop-item"><span>🍇 ${g.name} <br><small>${g.effect}</small></span><span>💰${g.price}</span><button class="shop-btn" onclick="buyGrape(${i})">かう</button></div>
+            `).join('');
+            document.getElementById('pet-shop-list').innerHTML = PETS.map((p, i) => `
+                <div class="shop-item"><span>🐾 ${p.name} <br><small>${p.desc}</small></span><span>💰${p.price}</span><button class="shop-btn" onclick="buyPet(${i})">かう</button></div>
+            `).join('');
+        }
+
+        function buyGrape(index) {
+            const item = GRAPES[index];
+            if (playerData.money >= item.price) {
+                if(confirm(`${item.name} をかいますか？`)) {
+                    playerData.money -= item.price;
+                    if(item.stat === "all") { playerData.kick += item.val; playerData.speed += item.val; playerData.technique += item.val; playerData.stamina += item.val; }
+                    else if(item.stat === "kt") { playerData.kick += item.val; playerData.technique += item.val; }
+                    else { playerData[item.stat] += item.val; }
+                    alert(`むしゃむしゃ… ${item.effect}！`);
+                    saveGame();
+                }
+            } else { alert("おかねがたりないよ！"); }
+        }
+
+        function buyPet(index) {
+            const item = PETS[index];
+            if (playerData.money >= item.price) {
+                if(confirm(`${item.name} をかいますか？`)) {
+                    playerData.money -= item.price;
+                    playerData.pet = item.name;
+                    alert(`${item.name} が なかまになった！`);
+                    saveGame();
+                }
+            } else { alert("おかねがたりないよ！"); }
+        }
+
+        // --- 履歴表示 ---
+        function renderHistory() {
+            const box = document.getElementById('history-box');
+            if (playerData.history.length === 0) { box.innerHTML = "記録はまだありません。"; return; }
+            box.innerHTML = playerData.history.slice().reverse().map(h => `<div style="border-bottom: 1px dashed #777; padding-bottom: 5px; margin-bottom: 5px;"><strong style="color:#00e5ff;">🗣️ 報告:</strong> ${h.input}<br><strong style="color:#ffeb3b;">🤖 AI:</strong> ${h.reply}</div>`).join('');
+        }
+
+        // --- 音声入力 ＆ AI ---
         let recognition = null; let isListening = false; let latestTranscript = ""; let isWaitingConfirm = false;
 
         function startSpeech() {
@@ -494,48 +341,62 @@
                 const SpeechRecognition = window.WindowsSpeechRecognition || window.SpeechRecognition || window.webkitSpeechRecognition;
                 if (!SpeechRecognition) { voiceLog.innerText = "エラー: マイク非対応"; return; }
                 recognition = new SpeechRecognition(); recognition.lang = 'ja-JP'; recognition.interimResults = true; recognition.maxAlternatives = 1; recognition.continuous = true; 
-                recognition.onstart = function() { isListening = true; isWaitingConfirm = false; latestTranscript = ""; voiceBtn.innerText = "🛑 話しおわったらここをおす！"; voiceBtn.style.backgroundColor = "#d32f2f"; voiceBtn.style.boxShadow = "0 4px 0 #b71c1c"; voiceLog.innerText = "スマホにむかってゆっくり話してね！"; };
+                recognition.onstart = function() { isListening = true; isWaitingConfirm = false; latestTranscript = ""; voiceBtn.innerText = "🛑 話しおわったらここをおす！"; voiceBtn.style.backgroundColor = "#d32f2f"; voiceLog.innerText = "スマホにむかってゆっくり話してね！"; };
                 recognition.onresult = function(event) { let resultText = ""; for (let i = event.resultIndex; i < event.results.length; i++) { resultText += event.results[i][0].transcript; } latestTranscript = resultText; voiceLog.innerHTML = `<strong>ききとり中：</strong> 「<span style="color: #00e5ff;">${latestTranscript}</span>」`; };
                 recognition.onerror = function(event) { if (event.error !== 'aborted') { voiceLog.innerText = "エラー発生"; resetVoiceUI(); } };
-                recognition.onend = function() { isListening = false; if (isWaitingConfirm) { document.getElementById('confirm-buttons-area').style.display = 'block'; if (latestTranscript.trim() === "") { document.getElementById('voice-log').innerHTML = `何も聞こえなかったよ。`; document.getElementById('btn-confirm-ok').disabled = true; } else { document.getElementById('voice-log').innerHTML = `🤖 <strong>AIかんとく：</strong><br>「<span style="color: #00e5ff; font-size:16px;">${latestTranscript}</span>」<br>でOKなら緑のボタンをおしてね！`; document.getElementById('btn-confirm-ok').disabled = false; } } else { resetVoiceUI(); } };
+                recognition.onend = function() { isListening = false; if (isWaitingConfirm) { document.getElementById('confirm-buttons-area').style.display = 'block'; if (latestTranscript.trim() === "") { document.getElementById('voice-log').innerHTML = `何も聞こえなかったよ。`; document.getElementById('btn-confirm-ok').disabled = true; } else { document.getElementById('voice-log').innerHTML = `🤖 <strong>AIかんとく：</strong><br>「<span style="color: #00e5ff;">${latestTranscript}</span>」<br>でOKなら緑のボタンをおしてね！`; document.getElementById('btn-confirm-ok').disabled = false; } } else { resetVoiceUI(); } };
             }
             try { recognition.start(); } catch (e) { console.log(e); }
         }
         function retryVoiceInput() { isWaitingConfirm = false; document.getElementById('confirm-buttons-area').style.display = 'none'; resetVoiceUI(); }
-        function commitVoiceResult() { isWaitingConfirm = false; document.getElementById('confirm-buttons-area').style.display = 'none'; processAIWithText(latestTranscript); }
-        function resetVoiceUI() { const voiceBtn = document.getElementById('btn-voice'); voiceBtn.style.display = 'inline-block'; voiceBtn.innerText = "🎙 れんしゅうを声でほうこく！"; voiceBtn.style.backgroundColor = "#ff9800"; voiceBtn.style.boxShadow = "0 4px 0 #e65100"; document.getElementById('voice-log').innerText = "上のボタンをおして練習を教えてね！"; }
-        function processAIWithText(text) {
-            const voiceLog = document.getElementById('voice-log'); voiceLog.innerHTML = `⏳ 査定中...`;
-            setTimeout(() => {
-                let statusUpText = "";
-                if (text.includes("シュート") || text.includes("点") || text.includes("キック")) { playerData.kick += 3; statusUpText = "⚽️ キックが 【3】 アップ！"; }
-                else if (text.includes("走") || text.includes("ダッシュ") || text.includes("スピード") || text.includes("はやい")) { playerData.speed += 3; statusUpText = "⚡️ スピードが 【3】 アップ！"; }
-                else if (text.includes("パス") || text.includes("リフティング") || text.includes("うまい") || text.includes("わざ")) { playerData.technique += 3; statusUpText = "🪄 テクニックが 【3】 アップ！"; }
-                else if (text.includes("ドリブル") || text.includes("たいりょく") || text.includes("スタミナ") || text.includes("しあい")) { playerData.stamina += 3; statusUpText = "❤️ スタミナが 【3】 アップ！"; }
-                else { playerData.kick += 1; playerData.speed += 1; playerData.technique += 1; playerData.stamina += 1; statusUpText = "🌟 すべての能力が 【1】 アップ！"; }
-                playerData.level += 1;
-                voiceLog.innerHTML = `🤖 <strong>AIかんとく：</strong><br>「${text}」だね！<div class="report-box"><strong>📊 しんさくリポート</strong><br>━<br>${statusUpText}<br>🆙 <strong>レベルが 【1】 あがったぞ！</strong><br>━</div><br><button onclick="resetVoiceUI()" style="background-color: #4caf50; padding: 6px 14px; font-size: 13px; margin: 0;">つぎのれんしゅうへ</button>`;
-                saveGame();
-            }, 1500);
+        function commitVoiceResult() { isWaitingConfirm = false; document.getElementById('confirm-buttons-area').style.display = 'none'; callGeminiAPI(latestTranscript); }
+        function resetVoiceUI() { const voiceBtn = document.getElementById('btn-voice'); voiceBtn.style.display = 'inline-block'; voiceBtn.innerText = "🎙 れんしゅうを声でほうこく！"; voiceBtn.style.backgroundColor = "#ff9800"; document.getElementById('voice-log').innerText = "上のボタンをおして練習を教えてね！"; }
+
+        async function callGeminiAPI(text) {
+            const voiceLog = document.getElementById('voice-log');
+            voiceLog.innerHTML = `⏳ <strong>AIかんとく（Gemini）</strong> が本気で分析中...`;
+
+            if (!GEMINI_API_KEY || GEMINI_API_KEY === "AIzaSyA97Bpp7ezqsDM1JXxBn82XEHyuGDwtyT4") { fallbackProcess(text); return; }
+
+            const prompt = `あなたは小学生のサッカーの熱血AI監督です。子供が以下の練習内容を報告しました。「${text}」この内容を判断して、キック、スピード、テクニック、スタミナのうち、どれがどれだけ（0〜5の範囲で）上がるべきか評価してください。また、子供を熱く褒めるメッセージを生成してください。必ず以下のJSONフォーマットのみを出力してください。Markdownの装飾(\`\`\`json)は絶対に含めないでください。{"kick":アップ量, "speed":アップ量, "technique":アップ量, "stamina":アップ量, "message":"褒め言葉"}`;
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ contents: [{parts: [{text: prompt}]}], generationConfig: { responseMimeType: "application/json" } })
+                });
+                
+                if(!response.ok) throw new Error("API通信エラー");
+                const data = await response.json(); const jsonText = data.candidates[0].content.parts[0].text; const result = JSON.parse(jsonText);
+
+                playerData.kick += result.kick; playerData.speed += result.speed; playerData.technique += result.technique; playerData.stamina += result.stamina;
+
+                voiceLog.innerHTML = `🤖 <strong>AIかんとく：</strong><br>「${result.message}」<br><div class="report-box"><strong>📊 AI分析リポート</strong><br>━<br>${result.kick > 0 ? `⚽️ キック +${result.kick}<br>` : ''}${result.speed > 0 ? `⚡️ スピード +${result.speed}<br>` : ''}${result.technique > 0 ? `🪄 テクニック +${result.technique}<br>` : ''}${result.stamina > 0 ? `❤️ スタミナ +${result.stamina}<br>` : ''}━</div><br><button onclick="resetVoiceUI()" style="background-color: #4caf50;">つぎのれんしゅうへ</button>`;
+                
+                playerData.history.push({ input: text, reply: result.message });
+                if(playerData.history.length > 10) playerData.history.shift(); 
+                saveGame(); renderHistory();
+            } catch(e) { console.error(e); fallbackProcess(text); }
         }
 
-        // --- 3. ＝★＝ 堅牢なステートマシン（バグ完全排除版） ＝★＝ ---
-        let currentMatchStamina = 10;
-        let maxMatchStamina = 10;
-        let mashProgress = 0;
-        let gameLoopInterval = null;
-        let matchPhase = "idle"; // ★状態を厳密に管理("idle", "dribble", "jump", "shoot", "result")
-        
-        let enemyPositionLeft = 110;
-        let enemySpeed = 1.5;
-        let enemyCounter = 0;      
-        let isJumping = false;     
-        let hasHitThisEnemy = false; 
-        let isMatchForcedEnd = false; 
+        function fallbackProcess(text) {
+            let k=1, s=1, t=1, st=1;
+            if (text.includes("シュート")) k+=3; else if (text.includes("走")) s+=3; else if (text.includes("パス")) t+=3; else if (text.includes("ドリブル")) st+=3;
+            playerData.kick+=k; playerData.speed+=s; playerData.technique+=t; playerData.stamina+=st;
+            
+            const msg = "ナイス練習だ！（※APIキーを設定すると本物のAIがコメントをくれます）";
+            document.getElementById('voice-log').innerHTML = `🤖 <strong>AIかんとく：</strong><br>「${msg}」<div class="report-box"><strong>📊 分析リポート</strong><br>━<br>⚽️ キック +${k}<br>⚡️ スピード +${s}<br>🪄 テクニック +${t}<br>❤️ スタミナ +${st}<br>━</div><br><button onclick="resetVoiceUI()" style="background-color: #4caf50;">つぎへ</button>`;
+            
+            playerData.history.push({ input: text, reply: msg });
+            if(playerData.history.length > 10) playerData.history.shift();
+            saveGame(); renderHistory();
+        }
 
-        window.targetSpotLeft = 70;
-        window.targetGoldLeft = 75;
-        window.targetGoldWidth = 4;
+        // --- 3. 試合システム ---
+        let currentMatchStamina = 10; let maxMatchStamina = 10; let mashProgress = 0; let gameLoopInterval = null; let matchPhase = "idle";
+        let enemyPositionLeft = 110; let enemySpeed = 1.5; let enemyCounter = 0; let isJumping = false; let hasHitThisEnemy = false; let isMatchForcedEnd = false; 
+
+        window.targetSpotLeft = 70; window.targetGoldLeft = 75; window.targetGoldWidth = 4;
 
         function updateStaminaUI() {
             const displayStamina = Math.ceil(currentMatchStamina);
@@ -549,52 +410,39 @@
         }
 
         function resetStadiumElements() {
-            const player = document.getElementById('stadium-player');
-            const enemy = document.getElementById('stadium-enemy');
-            const indicator = document.getElementById('final-indicator');
-            
-            player.style.left = "10%"; player.style.bottom = "15px";
-            enemy.style.left = "110%"; enemy.style.transform = "none";
-            enemy.innerText = "🏃‍♂️";
-            
-            if (indicator) {
-                indicator.style.animation = 'none';
-                indicator.style.left = ''; // ★インラインCSSを確実に消去し、フリーズを防止
-            }
-            
-            isJumping = false;
-            isMatchForcedEnd = false;
-            document.getElementById('ui-jump-marker').style.display = 'none';
-            document.getElementById('ui-box-dribble').style.display = 'none';
-            document.getElementById('ui-box-jump').style.display = 'none';
-            document.getElementById('ui-box-shoot').style.display = 'none';
+            const player = document.getElementById('stadium-player'); const enemy = document.getElementById('stadium-enemy'); const indicator = document.getElementById('final-indicator');
+            player.style.left = "10%"; player.style.bottom = "15px"; enemy.style.left = "110%"; enemy.style.transform = "none"; enemy.innerText = "🏃‍♂️";
+            if (indicator) { indicator.style.animation = 'none'; indicator.style.left = ''; }
+            isJumping = false; isMatchForcedEnd = false;
+            document.getElementById('ui-jump-marker').style.display = 'none'; document.getElementById('ui-box-dribble').style.display = 'none'; document.getElementById('ui-box-jump').style.display = 'none'; document.getElementById('ui-box-shoot').style.display = 'none';
         }
 
         function startMatchCombo() {
             if (matchPhase !== "idle" && matchPhase !== "result") return;
             if (gameLoopInterval) { clearInterval(gameLoopInterval); gameLoopInterval = null; }
 
+            document.getElementById('btn-back-map').style.display = 'none'; // 試合中は戻れないようにする
+
             maxMatchStamina = playerData.stamina;
             currentMatchStamina = playerData.stamina;
-            updateStaminaUI();
-            resetStadiumElements();
-            initDribblePhase();
+            
+            const petBonusTxt = document.getElementById('txt-pet-bonus');
+            if(playerData.pet === "おうえん犬") petBonusTxt.innerText = "🐶犬が応援！";
+            else if(playerData.pet === "ミニドラゴン") petBonusTxt.innerText = "🐉ドラゴンが応援！";
+            else petBonusTxt.innerText = "";
+
+            updateStaminaUI(); resetStadiumElements(); initDribblePhase();
         }
 
-        // ── フェーズ1：ダッシュ連打 ──
         function initDribblePhase() {
-            matchPhase = "dribble";
-            mashProgress = 0;
-            isMatchForcedEnd = false;
-            
+            matchPhase = "dribble"; mashProgress = 0; isMatchForcedEnd = false;
             document.getElementById('ui-box-dribble').style.display = 'block';
-            document.getElementById('battle-log').innerText = "【フェーズ1】連打（れんだ）でメーターを100%にしろ！おそいとスタミナがなくなるぞ！";
-            document.getElementById('battle-buttons-area').innerHTML = `<button id="btn-game-main" onclick="executeMash()" style="background-color: #29b6f6; box-shadow: 0 4px 0 #0288d1; width:85%; font-size:18px;">🔥 ダッシュ連打！！！</button>`;
+            document.getElementById('battle-log').innerText = "【フェーズ1】連打でメーターを100%にしろ！";
+            document.getElementById('battle-buttons-area').innerHTML = `<button id="btn-game-main" onclick="executeMash()" style="background-color: #29b6f6; width:85%; font-size:18px;">🔥 ダッシュ連打！！！</button>`;
 
             gameLoopInterval = setInterval(() => {
-                if (matchPhase !== "dribble") return; // 状態ガード
-
-                const decay = Math.max(0.5, 1.0 + (playerData.level * 0.04));
+                if (matchPhase !== "dribble") return;
+                const decay = Math.max(0.5, 1.0 + (playerData.level * 0.1));
                 mashProgress = Math.max(0, mashProgress - decay);
                 document.getElementById('dribble-mash-bar').style.width = mashProgress + "%";
                 document.getElementById('stadium-player').style.left = (10 + (mashProgress * 0.4)) + "%";
@@ -603,11 +451,8 @@
                 updateStaminaUI();
 
                 if (currentMatchStamina <= 1) {
-                    matchPhase = "transition"; // 多重呼び出し防止ロック
-                    clearInterval(gameLoopInterval);
-                    gameLoopInterval = null;
-                    isMatchForcedEnd = true; 
-                    endDribblePhase();
+                    matchPhase = "transition"; clearInterval(gameLoopInterval); gameLoopInterval = null;
+                    isMatchForcedEnd = true; endDribblePhase();
                 }
             }, 50);
         }
@@ -619,91 +464,56 @@
             document.getElementById('dribble-mash-bar').style.width = mashProgress + "%";
 
             if (mashProgress >= 100) {
-                matchPhase = "transition"; // 多重呼び出し防止ロック
-                clearInterval(gameLoopInterval);
-                gameLoopInterval = null;
-                endDribblePhase();
+                matchPhase = "transition"; clearInterval(gameLoopInterval); gameLoopInterval = null; endDribblePhase();
             }
         }
 
         function endDribblePhase() {
             const log = document.getElementById('battle-log');
-            if (isMatchForcedEnd) {
-                log.innerHTML = `<span style="color:#f44336; font-weight:bold;">🚨 スタミナぎれ！</span> つかれはてて強制（きょうせい）ジャンプへ！`;
-            } else {
-                log.innerHTML = `<span style="color:#4caf50; font-weight:bold;">✨ ドリブル大せいこう！</span> メーターMAXであいてをぬきさった！`;
-            }
-
-            setTimeout(() => {
-                document.getElementById('ui-box-dribble').style.display = 'none';
-                initJumpPhase();
-            }, 1200);
+            if (isMatchForcedEnd) log.innerHTML = `<span style="color:#f44336; font-weight:bold;">🚨 スタミナぎれ！</span> つかれはてて強制ジャンプへ！`;
+            else log.innerHTML = `<span style="color:#4caf50; font-weight:bold;">✨ ドリブル大せいこう！</span>`;
+            setTimeout(() => { document.getElementById('ui-box-dribble').style.display = 'none'; initJumpPhase(); }, 1200);
         }
 
-        // ── フェーズ2：3人抜きジャンプ（★完全単一ループ化・敵同士の間隔確保） ──
         function initJumpPhase() {
-            matchPhase = "jump";
-            enemyCounter = 1; 
-            hasHitThisEnemy = false;
-            enemyPositionLeft = 110;
-            isJumping = false;
-
-            document.getElementById('ui-box-jump').style.display = 'block';
-            document.getElementById('ui-jump-marker').style.display = 'block';
-            
-            const log = document.getElementById('battle-log');
-            log.innerHTML = `【フェーズ2】あいてが走ってきた！<span style="color:#ffeb3b; font-weight:bold;">【1人目】</span>！赤い線にきたらジャンプ！`;
+            matchPhase = "jump"; enemyCounter = 1; hasHitThisEnemy = false; enemyPositionLeft = 110; isJumping = false;
+            document.getElementById('ui-box-jump').style.display = 'block'; document.getElementById('ui-jump-marker').style.display = 'block';
+            document.getElementById('battle-log').innerHTML = `【フェーズ2】あいてが走ってきた！<span style="color:#ffeb3b; font-weight:bold;">【1人目】</span>！`;
 
             const enemy = document.getElementById('stadium-enemy');
-            enemy.innerText = "🏃‍♂️💨";
-            enemy.style.left = enemyPositionLeft + "%";
-            enemy.style.transform = "none";
+            enemy.innerText = "🏃‍♂️💨"; enemy.style.left = enemyPositionLeft + "%"; enemy.style.transform = "none";
+            enemySpeed = 1.6 + (playerData.level * 0.1);
 
-            enemySpeed = 1.6 + (playerData.level * 0.05);
+            document.getElementById('battle-buttons-area').innerHTML = `<button id="btn-game-main" onclick="executeJump()" style="background-color: #ff9800; width:85%; font-size:18px;">🪄 ジャンプ！！！</button>`;
 
-            document.getElementById('battle-buttons-area').innerHTML = `<button id="btn-game-main" onclick="executeJump()" style="background-color: #ff9800; box-shadow: 0 4px 0 #e65100; width:85%; font-size:18px;">🪄 ジャンプ！！！</button>`;
-
-            // ★この1つのタイマーだけで3人全員を処理しきる
             gameLoopInterval = setInterval(() => {
-                if (matchPhase !== "jump") return; // 状態ガード
-
-                enemyPositionLeft -= enemySpeed;
-                enemy.style.left = enemyPositionLeft + "%";
+                if (matchPhase !== "jump") return;
+                enemyPositionLeft -= enemySpeed; enemy.style.left = enemyPositionLeft + "%";
 
                 const techBonus = Math.min(6, playerData.technique / 4);
-                const dangerZoneLeft = 14 + techBonus;
-                const dangerZoneRight = 32 - techBonus;
+                const dangerZoneLeft = 14 + techBonus; const dangerZoneRight = 32 - techBonus;
 
                 if (enemyPositionLeft >= dangerZoneLeft && enemyPositionLeft <= dangerZoneRight) {
                     if (!isJumping && !hasHitThisEnemy) {
                         hasHitThisEnemy = true;
-                        currentMatchStamina = Math.max(1, currentMatchStamina - 2); 
+                        let damage = 2; if(playerData.pet === "おうえん犬") damage = 1;
+                        currentMatchStamina = Math.max(1, currentMatchStamina - damage); 
                         updateStaminaUI();
                         enemy.style.transform = "scale(1.2) rotate(-10deg)";
                         document.getElementById('stadium-player').style.left = "4%"; 
-                        log.innerHTML = `<span style="color:#f44336; font-weight:bold;">😢 ズドン！${enemyCounter}人目にぶつかった！</span>（スタミナ-2）`;
-                        
+                        document.getElementById('battle-log').innerHTML = `<span style="color:#f44336; font-weight:bold;">😢 ズドン！</span>（スタミナ-${damage}）`;
                         setTimeout(() => { document.getElementById('stadium-player').style.left = "10%"; }, 250);
                     }
                 }
 
-                // 敵が左へ完全に消えた時の処理
                 if (enemyPositionLeft <= -15) {
                     if (enemyCounter < 3) {
-                        enemyCounter++;
-                        hasHitThisEnemy = false;
-                        // ★【修正】：敵が連続ですぎないよう、画面のもっと右（130%）からスタートさせて「間（息継ぎ）」を作る
-                        enemyPositionLeft = 130; 
-                        enemy.style.transform = "none";
-                        enemySpeed = 1.6 + (playerData.level * 0.05) + (enemyCounter * 0.3);
-                        log.innerHTML = `【フェーズ2】<span style="color:#ffeb3b; font-weight:bold;">【${enemyCounter}人目】</span>がくるぞ！ジャンプ！`;
+                        enemyCounter++; hasHitThisEnemy = false; enemyPositionLeft = 130; enemy.style.transform = "none";
+                        enemySpeed = 1.6 + (playerData.level * 0.1) + (enemyCounter * 0.4);
+                        document.getElementById('battle-log').innerHTML = `【フェーズ2】<span style="color:#ffeb3b; font-weight:bold;">【${enemyCounter}人目】</span>がくるぞ！`;
                     } else {
-                        matchPhase = "transition"; // 多重呼び出し防止ロック
-                        clearInterval(gameLoopInterval);
-                        gameLoopInterval = null;
-                        document.getElementById('ui-box-jump').style.display = 'none';
-                        document.getElementById('ui-jump-marker').style.display = 'none';
-                        enemy.style.transform = "none";
+                        matchPhase = "transition"; clearInterval(gameLoopInterval); gameLoopInterval = null;
+                        document.getElementById('ui-box-jump').style.display = 'none'; document.getElementById('ui-jump-marker').style.display = 'none'; enemy.style.transform = "none";
                         initShootPhase();
                     }
                 }
@@ -711,153 +521,97 @@
         }
 
         function executeJump() {
-            if (matchPhase !== "jump" || isJumping) return; // 空中ジャンプ禁止ガード
+            if (matchPhase !== "jump" || isJumping) return; 
             isJumping = true; 
-
-            const player = document.getElementById('stadium-player');
-            player.style.bottom = "68px"; 
-
-            setTimeout(() => {
-                player.style.bottom = "15px";
-                isJumping = false; 
-            }, 380);
+            const player = document.getElementById('stadium-player'); player.style.bottom = "68px"; 
+            setTimeout(() => { player.style.bottom = "15px"; isJumping = false; }, 380);
         }
 
-        // ── フェーズ3：最後のシュート（★完全バグ修正＆中心座標判定） ──
         function initShootPhase() {
             matchPhase = "shoot";
             const enemy = document.getElementById('stadium-enemy');
-            enemy.innerText = "🧤"; 
-            enemy.style.left = "85%";
+            enemy.innerText = "🧤"; enemy.style.left = "85%";
 
             document.getElementById('ui-box-shoot').style.display = 'block';
-            document.getElementById('battle-log').innerText = "【ファイナル】ラストシュート！動くバーを【一番右端の金色のわく】でとめると、おかねが2倍！！";
-            document.getElementById('battle-buttons-area').innerHTML = `<button id="btn-game-main" onclick="executeShoot()" style="background-color: #29b6f6; box-shadow: 0 4px 0 #0288d1; width:85%; font-size:18px;">🔥 いま、シュート！！！</button>`;
+            document.getElementById('battle-log').innerText = "【ファイナル】動くバーを【一番右端の金色のわく】でとめろ！";
+            document.getElementById('battle-buttons-area').innerHTML = `<button id="btn-game-main" onclick="executeShoot()" style="background-color: #29b6f6; width:85%; font-size:18px;">🔥 いま、シュート！！！</button>`;
 
-            // 赤枠（右端は常に85%固定）
             const sweetSpot = document.getElementById('ui-sweet-spot');
             const spotWidth = Math.min(45, 14 + (playerData.kick / 3)); 
             const spotLeft = 85 - spotWidth;
-            sweetSpot.style.width = spotWidth + "%";
-            sweetSpot.style.left = spotLeft + "%";
+            sweetSpot.style.width = spotWidth + "%"; sweetSpot.style.left = spotLeft + "%";
 
-            // ゴールドスポット（赤枠の「一番右のハテ（85%）」にぴったり結合）
             const goldSpot = document.getElementById('ui-gold-spot');
             const goldWidth = Math.min(8, 3.5 + (playerData.kick * 0.05)); 
-            const goldLeft = 85 - goldWidth; // 赤枠の右端
-            goldSpot.style.width = goldWidth + "%";
-            goldSpot.style.left = goldLeft + "%";
+            const goldLeft = 85 - goldWidth; 
+            goldSpot.style.width = goldWidth + "%"; goldSpot.style.left = goldLeft + "%";
 
-            window.targetSpotLeft = spotLeft;
-            window.targetGoldLeft = goldLeft;
-            window.targetGoldWidth = goldWidth;
+            window.targetSpotLeft = spotLeft; window.targetGoldLeft = goldLeft; window.targetGoldWidth = goldWidth;
 
-            // ★アニメーションの速度をマイルドに調整
             const staminaRatio = Math.max(0, currentMatchStamina) / maxMatchStamina;
-            const speedDuration = 0.5 + (staminaRatio * 0.7); // 満タンで1.2秒、ボロボロで0.5秒
+            let speedDuration = 0.5 + (staminaRatio * 0.7); 
+            speedDuration = Math.max(0.2, speedDuration - (playerData.level * 0.02));
+            if (playerData.pet === "ミニドラゴン") speedDuration += 0.2;
 
             const indicator = document.getElementById('final-indicator');
-            indicator.style.animation = 'none'; // 古いアニメーションを消す
-            indicator.style.left = ''; // ★最重要：インラインCSSを消去してフリーズを回避
-            indicator.offsetHeight; // リフロー（再描画）を強制
-            indicator.style.animation = `moveBar ${speedDuration}s infinite linear alternate`; // 新しい速度で動かす
+            indicator.style.animation = 'none'; indicator.style.left = ''; indicator.offsetHeight; 
+            indicator.style.animation = `moveBar ${speedDuration}s infinite linear alternate`;
         }
 
         function executeShoot() {
-            if (matchPhase !== "shoot") return;
-            matchPhase = "result"; // 多重呼び出し防止ロック
+            if (matchPhase !== "shoot") return; matchPhase = "result"; 
 
-            const indicator = document.getElementById('final-indicator');
-            const gaugeBox = document.getElementById('final-gauge-box');
-            
-            const computedStyle = window.getComputedStyle(indicator);
-            const leftStr = computedStyle.getPropertyValue('left');
+            const indicator = document.getElementById('final-indicator'); const gaugeBox = document.getElementById('final-gauge-box');
+            const computedStyle = window.getComputedStyle(indicator); const leftStr = computedStyle.getPropertyValue('left');
             const parentWidth = gaugeBox.offsetWidth;
-            
-            // ★【バグ修正】：バーの左端(currentPercent)ではなく、バーの「中心」の位置を計算する
             const leftPercent = (parseFloat(leftStr) / parentWidth) * 100;
             const barWidthPercent = (indicator.offsetWidth / parentWidth) * 100;
             const centerPercent = leftPercent + (barWidthPercent / 2);
 
-            indicator.style.animation = 'none'; // アニメーションを止める
-            indicator.style.left = leftStr; // その場にバーを残す
-
+            indicator.style.animation = 'none'; indicator.style.left = leftStr; 
             document.getElementById('btn-game-main').disabled = true;
 
             setTimeout(() => {
-                const overlay = document.getElementById('result-overlay');
-                const announcement = document.getElementById('result-announcement');
-                const subText = document.getElementById('result-sub-text');
-                
-                // ★【バグ修正】：文字のアニメーションを確実にゼロにしてから、新しく付与する
-                announcement.style.animation = "none";
-                announcement.offsetHeight; // リフロー
-                
-                overlay.style.display = 'flex';
+                const overlay = document.getElementById('result-overlay'); const announcement = document.getElementById('result-announcement'); const subText = document.getElementById('result-sub-text');
+                announcement.style.animation = "none"; announcement.offsetHeight; overlay.style.display = 'flex';
                 
                 const goldRight = window.targetGoldLeft + window.targetGoldWidth;
 
-                // ガチンコスコア判定（★見た目のズレをなくすため、バーの中心位置で判定）
-                if (centerPercent >= window.targetGoldLeft && centerPercent <= goldRight + (barWidthPercent / 2)) {
-                    const basePrize = 50 + (playerData.kick * 2) + playerData.technique;
-                    const superPrize = basePrize * 2; 
-                    playerData.money += superPrize;
-
-                    announcement.innerHTML = "👑✨ SUPER GOAL!!! ✨👑";
-                    announcement.style.color = "#ffd700"; 
-                    announcement.style.animation = "popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) both, goalFlash 0.15s infinite alternate"; 
-                    
-                    subText.innerHTML = `
-                        伝説（でんせつ）の隅っこゴール誕生！！<br>
-                        赤わくのハテにある【きんいろの枠】に見事ジャストミート！キーパーが一歩も動けない、神がかったスーパーシュートがきまったぞ！！<br><br>
-                        🎁 <strong>ウルトラごほうびボーナス（おかね2倍！）</strong><br>
-                        💰 <strong>${superPrize}えん</strong> ゲット！！！
-                    `;
-                    document.getElementById('battle-log').innerHTML = `👑 すみっこ金色ジャストミートでスーパーゴール！！`;
-
-                } else if (centerPercent >= window.targetSpotLeft && centerPercent <= 85 + (barWidthPercent / 2)) {
-                    const prize = 50 + (playerData.kick * 2) + playerData.technique;
+                const processGoal = (prize, isSuper) => {
                     playerData.money += prize;
+                    playerData.level += 1; 
+                    const prefix = isSuper ? "👑✨ SUPER GOAL!!! ✨👑" : "⚽️🔥 GOOOOOAL!!! 🔥⚽️";
+                    const color = isSuper ? "#ffd700" : "#ffeb3b";
+                    announcement.innerHTML = prefix; announcement.style.color = color;
+                    announcement.style.animation = "popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) both, goalFlash 0.15s infinite alternate"; 
+                    subText.innerHTML = `やったぞ！<br>🆙 <strong>レベル（しょうりすう）があがった！次から敵がもっと強くなるぞ！</strong><br><br>💰 <strong>${prize}えん</strong> ゲット！`;
+                };
 
-                    announcement.innerHTML = "⚽️🔥 GOOOOOAL!!! 🔥⚽️";
-                    announcement.style.color = "#ffeb3b";
-                    announcement.style.animation = "popIn 0.4s both, goalFlash 0.3s infinite alternate";
-                    
-                    subText.innerHTML = `🎉 <strong>ナイスゴール！！赤わくジャストミート！</strong><br>あすき選手のするどいシュートがゴールにつきささったぞ！<br><br>💰 <strong>${prize}えん</strong> ゲット！`;
-                    document.getElementById('battle-log').innerHTML = `🎉 ナイスシュートでゴール！`;
-
+                if (centerPercent >= window.targetGoldLeft && centerPercent <= goldRight + (barWidthPercent / 2)) {
+                    processGoal((50 + (playerData.kick * 2) + playerData.technique) * 2, true);
+                } else if (centerPercent >= window.targetSpotLeft && centerPercent <= 85 + (barWidthPercent / 2)) {
+                    processGoal(50 + (playerData.kick * 2) + playerData.technique, false);
                 } else {
-                    announcement.innerHTML = "🧤 SAVED... 😢";
-                    announcement.style.color = "#b0bec5";
-                    announcement.style.animation = "popIn 0.4s both";
-                    
-                    subText.innerHTML = `あ！おしい！わくからズレてしまった！<br>あいてのキーパーにがっちりとめられたぞ。<br><br>くやしい！もっとリアルのれんしゅうをして、能力（ステータス）を上げて再ちょうせんだ！`;
-                    document.getElementById('battle-log').innerHTML = `😢 キーパーにとめられた…`;
+                    announcement.innerHTML = "🧤 SAVED... 😢"; announcement.style.color = "#b0bec5"; announcement.style.animation = "popIn 0.4s both";
+                    subText.innerHTML = `おしい！あいてのキーパーにがっちりとめられた。<br>もっとれんしゅうをして、能力を上げて再ちょうせんだ！`;
                 }
                 saveGame();
             }, 1000);
         }
 
-        // ★【バグ完全修正】：文字点滅のアニメーションを確実に殺し、次の試合へ綺麗に戻す
         function closeResultOverlay() {
-            document.getElementById('result-overlay').style.display = 'none';
-            document.getElementById('result-announcement').style.animation = 'none'; 
-            document.getElementById('ui-box-shoot').style.display = 'none';
-            
-            document.getElementById('battle-buttons-area').innerHTML = `<button id="btn-game-main" onclick="startMatchCombo()" style="background-color: #d32f2f; box-shadow: 0 4px 0 #b71c1c; width: 85%;">しあいはじめる！</button>`;
+            document.getElementById('result-overlay').style.display = 'none'; document.getElementById('result-announcement').style.animation = 'none'; document.getElementById('ui-box-shoot').style.display = 'none';
+            document.getElementById('battle-buttons-area').innerHTML = `<button id="btn-game-main" onclick="startMatchCombo()" style="background-color: #d32f2f; width: 85%;">しあいはじめる！</button>`;
             document.getElementById('battle-log').innerText = "コンボを繋げて次のゴールをめざそう！";
-            
-            matchPhase = "idle"; // ★状態をアイドル（待機）に戻す
-            resetStadiumElements();
-            updateUI();
+            document.getElementById('btn-back-map').style.display = 'block'; // マップに戻るボタン復活
+            matchPhase = "idle"; resetStadiumElements(); updateUI();
         }
 
         function resetData() {
             if (confirm('ほんとうにデータをさいしょからにする？')) {
                 localStorage.removeItem('soccer_rpg_save');
-                playerData = { name: "", level: 1, kick: 10, speed: 10, technique: 10, stamina: 10, money: 0 };
-                alert('リセットしました！');
-                location.reload();
+                playerData = { name: "", level: 1, kick: 10, speed: 10, technique: 10, stamina: 10, money: 0, pet: "なし", history: [] };
+                alert('リセットしました！'); location.reload();
             }
         }
     </script>
