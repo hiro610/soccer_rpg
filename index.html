@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>サッカーせいちょうRPG - スプリント1（連打復活版）</title>
+    <title>サッカーせいちょうRPG - スプリント1（完全バグ修正版）</title>
     <style>
-        /* 【スマホ用ズーム防止】CSSでダブルタップ・ピンチズームを徹底的に禁止 */
+        /* 【常時スマホ用ズーム防止】CSSでダブルタップ・ピンチズームを徹底的に禁止 */
         html, body, button, .card, .mini-stadium, .glass-box, .gauge-container, .gauge-bar, .sweet-spot, .gold-spot {
             touch-action: manipulation !important;
             -webkit-user-select: none; 
@@ -204,6 +204,7 @@
         }
         .match-avatar img { width: 100%; height: 100%; object-fit: contain; }
 
+        /* 敵のスタイル：完全にJS制御するためtransitionは無し */
         .match-enemy {
             position: absolute;
             bottom: 15px;
@@ -430,8 +431,6 @@
             const savedData = localStorage.getItem('soccer_rpg_save');
             if (savedData) { playerData = JSON.parse(savedData); }
             if (!playerData.name) { setTimeout(() => { askName(); }, 500); } else { updateUI(); }
-
-            // ★【バグ修正】：連打を殺していた最悪のJS側イベントリスナーを完全に消去しました！
         };
 
         function askName() {
@@ -632,45 +631,36 @@
             }, 1200);
         }
 
-        // ── フェーズ2：3人抜きリアルタイムジャンプ ──
+        // ── ★【大リファクタリング】フェーズ2：3人抜きシングルループ・ガチンコジャンプ ──
         function initJumpPhase() {
             matchPhase = "jump";
-            enemyCounter = 0; 
+            enemyCounter = 1; // 1人目からスタート
+            hasHitThisEnemy = false;
+            enemyPositionLeft = 110;
+            isJumping = false;
+
             document.getElementById('ui-box-jump').style.display = 'block';
             document.getElementById('ui-jump-marker').style.display = 'block';
             
-            document.getElementById('battle-buttons-area').innerHTML = `<button id="btn-game-main" onclick="executeJump()" style="background-color: #ff9800; box-shadow: 0 4px 0 #e65100; width:85%; font-size:18px;">🪄 ジャンプ！！！</button>`;
-            
-            spawnNextEnemy();
-        }
-
-        function spawnNextEnemy() {
-            enemyCounter++;
-            if (enemyCounter > 3) {
-                clearInterval(gameLoopInterval);
-                document.getElementById('ui-box-jump').style.display = 'none';
-                document.getElementById('ui-jump-marker').style.display = 'none';
-                initShootPhase();
-                return;
-            }
-
             const log = document.getElementById('battle-log');
-            log.innerHTML = `【フェーズ2】あいてが走ってきた！<span style="color:#ffeb3b; font-weight:bold;">【${enemyCounter}人目】</span>！赤い線にきたらジャンプ！`;
-
-            enemyPositionLeft = 110;
-            hasHitThisEnemy = false;
+            log.innerHTML = `【フェーズ2】あいてが走ってきた！<span style="color:#ffeb3b; font-weight:bold;">【1人目】</span>！赤い線にきたらジャンプ！`;
 
             const enemy = document.getElementById('stadium-enemy');
             enemy.innerText = "🏃‍♂️💨";
             enemy.style.left = enemyPositionLeft + "%";
             enemy.style.transform = "none";
 
+            // 1人目の初期速度
             enemySpeed = 1.6 + (playerData.level * 0.05) + (enemyCounter * 0.4);
 
+            document.getElementById('battle-buttons-area').innerHTML = `<button id="btn-game-main" onclick="executeJump()" style="background-color: #ff9800; box-shadow: 0 4px 0 #e65100; width:85%; font-size:18px;">🪄 ジャンプ！！！</button>`;
+
+            // ★【バグ粉砕】：多重予約を絶対させない、1つだけの強固なゲームループを起動
             gameLoopInterval = setInterval(() => {
                 enemyPositionLeft -= enemySpeed;
                 enemy.style.left = enemyPositionLeft + "%";
 
+                // 物理衝突判定
                 const techBonus = Math.min(6, playerData.technique / 4);
                 const dangerZoneLeft = 14 + techBonus;
                 const dangerZoneRight = 32 - techBonus;
@@ -688,12 +678,24 @@
                     }
                 }
 
+                // ★【バグ粉砕】：敵が左端に消え去った瞬間の処理を完全にループ内で一本化
                 if (enemyPositionLeft <= -10) {
-                    clearInterval(gameLoopInterval);
-                    if (!hasHitThisEnemy) {
-                        log.innerHTML = `<span style="color:#4caf50; font-weight:bold;">✨ ナイス！${enemyCounter}人目をクリア！</span>`;
+                    if (enemyCounter < 3) {
+                        // 次の敵をこの同一ループ内で即座に生成（ワープ＆リセット）
+                        enemyCounter++;
+                        hasHitThisEnemy = false;
+                        enemyPositionLeft = 110; // 右端に戻す
+                        enemy.style.transform = "none";
+                        // 2人目、3人目になるにつれて速度アップ
+                        enemySpeed = 1.6 + (playerData.level * 0.05) + (enemyCounter * 0.4);
+                        log.innerHTML = `<span style="color:#4caf50; font-weight:bold;">✨ ナイス！クリア！つぎは【${enemyCounter}人目】がくるぞ！</span>`;
+                    } else {
+                        // 3人目が完全に消え去ったら、このループを確実に停止してシュートへ安全に移行！
+                        clearInterval(gameLoopInterval);
+                        document.getElementById('ui-box-jump').style.display = 'none';
+                        document.getElementById('ui-jump-marker').style.display = 'none';
+                        initShootPhase();
                     }
-                    setTimeout(() => { spawnNextEnemy(); }, 800);
                 }
             }, 30);
         }
@@ -711,7 +713,7 @@
             }, 380);
         }
 
-        // ── フェーズ3：最後のシュート ──
+        // ── フェーズ3：最後のシュート（★金色を赤枠の「一番右端」に綺麗に結合） ──
         function initShootPhase() {
             matchPhase = "shoot";
             const enemy = document.getElementById('stadium-enemy');
@@ -719,18 +721,20 @@
             enemy.style.left = "85%";
 
             document.getElementById('ui-box-shoot').style.display = 'block';
-            document.getElementById('battle-log').innerText = "【ファイナル】ラストシュート！動くバーを【金色のわく】でとめると、おかねが2倍！！";
+            document.getElementById('battle-log').innerText = "【ファイナル】ラストシュート！動くバーを【一番右端の金色のわく】でとめると、おかねが2倍！！";
             document.getElementById('battle-buttons-area').innerHTML = `<button id="btn-game-main" onclick="executeShoot()" style="background-color: #29b6f6; box-shadow: 0 4px 0 #0288d1; width:85%; font-size:18px;">🔥 いま、シュート！！！</button>`;
 
+            // 1. 赤枠エリアの幅と左位置（右端は常に85%固定）
             const sweetSpot = document.getElementById('ui-sweet-spot');
             const spotWidth = Math.min(45, 14 + (playerData.kick / 3)); 
             const spotLeft = 85 - spotWidth;
             sweetSpot.style.width = spotWidth + "%";
             sweetSpot.style.left = spotLeft + "%";
 
+            // 2. ★【位置変更】：ゴールドスポット（金色ゾーン）を赤枠の「一番右のハテ（85%）」にぴったり結合！
             const goldSpot = document.getElementById('ui-gold-spot');
             const goldWidth = Math.min(8, 3.5 + (playerData.kick * 0.05)); 
-            const goldLeft = 85 - goldWidth; 
+            const goldLeft = 85 - goldWidth; // ★右端（85%）から逆算して配置
             goldSpot.style.width = goldWidth + "%";
             goldSpot.style.left = goldLeft + "%";
 
@@ -770,6 +774,7 @@
                 
                 const goldRight = window.targetGoldLeft + window.targetGoldWidth;
 
+                // ガチンコスコア判定（金色 ➔ 赤枠 ➔ 外れキーパーセーブ）
                 if (currentPercent >= window.targetGoldLeft && currentPercent <= goldRight) {
                     const basePrize = 50 + (playerData.kick * 2) + playerData.technique;
                     const superPrize = basePrize * 2; 
@@ -819,6 +824,10 @@
             resetStadiumElements();
             updateUI();
         }
+
+        document.getElementById('btn-voice').addEventListener('touchstart', function(e) {
+            // 音声入力ボタンでの誤タップ動作を抑制する保険
+        });
 
         function resetData() {
             if (confirm('ほんとうにデータをさいしょからにする？')) {
