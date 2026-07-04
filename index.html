@@ -236,7 +236,6 @@
             z-index: 2;
         }
 
-        /* 黄金ゾーン */
         .gold-spot {
             position: absolute;
             width: 4%;
@@ -724,7 +723,7 @@
             }, 380);
         }
 
-        // ── フェーズ3：最後のシュート（★バグ完全修正版・金色右端配置） ──
+        // ── フェーズ3：最後のシュート（★完全バグ修正＆中心座標判定） ──
         function initShootPhase() {
             matchPhase = "shoot";
             const enemy = document.getElementById('stadium-enemy');
@@ -735,14 +734,14 @@
             document.getElementById('battle-log').innerText = "【ファイナル】ラストシュート！動くバーを【一番右端の金色のわく】でとめると、おかねが2倍！！";
             document.getElementById('battle-buttons-area').innerHTML = `<button id="btn-game-main" onclick="executeShoot()" style="background-color: #29b6f6; box-shadow: 0 4px 0 #0288d1; width:85%; font-size:18px;">🔥 いま、シュート！！！</button>`;
 
-            // 赤枠（右端は常に85%）
+            // 赤枠（右端は常に85%固定）
             const sweetSpot = document.getElementById('ui-sweet-spot');
             const spotWidth = Math.min(45, 14 + (playerData.kick / 3)); 
             const spotLeft = 85 - spotWidth;
             sweetSpot.style.width = spotWidth + "%";
             sweetSpot.style.left = spotLeft + "%";
 
-            // ★【修正】：ゴールドスポットを赤枠の「一番右のハテ（85%）」にぴったり結合
+            // ゴールドスポット（赤枠の「一番右のハテ（85%）」にぴったり結合）
             const goldSpot = document.getElementById('ui-gold-spot');
             const goldWidth = Math.min(8, 3.5 + (playerData.kick * 0.05)); 
             const goldLeft = 85 - goldWidth; // 赤枠の右端
@@ -753,12 +752,13 @@
             window.targetGoldLeft = goldLeft;
             window.targetGoldWidth = goldWidth;
 
-            // ★【バグ修正】：アニメーション速度の正常化（早すぎて見えないのを防止し、0.5秒〜1.2秒に調整）
+            // ★アニメーションの速度をマイルドに調整
             const staminaRatio = Math.max(0, currentMatchStamina) / maxMatchStamina;
             const speedDuration = 0.5 + (staminaRatio * 0.7); // 満タンで1.2秒、ボロボロで0.5秒
 
             const indicator = document.getElementById('final-indicator');
             indicator.style.animation = 'none'; // 古いアニメーションを消す
+            indicator.style.left = ''; // ★最重要：インラインCSSを消去してフリーズを回避
             indicator.offsetHeight; // リフロー（再描画）を強制
             indicator.style.animation = `moveBar ${speedDuration}s infinite linear alternate`; // 新しい速度で動かす
         }
@@ -773,7 +773,11 @@
             const computedStyle = window.getComputedStyle(indicator);
             const leftStr = computedStyle.getPropertyValue('left');
             const parentWidth = gaugeBox.offsetWidth;
-            const currentPercent = (parseFloat(leftStr) / parentWidth) * 100;
+            
+            // ★【バグ修正】：バーの左端(currentPercent)ではなく、バーの「中心」の位置を計算する
+            const leftPercent = (parseFloat(leftStr) / parentWidth) * 100;
+            const barWidthPercent = (indicator.offsetWidth / parentWidth) * 100;
+            const centerPercent = leftPercent + (barWidthPercent / 2);
 
             indicator.style.animation = 'none'; // アニメーションを止める
             indicator.style.left = leftStr; // その場にバーを残す
@@ -793,8 +797,8 @@
                 
                 const goldRight = window.targetGoldLeft + window.targetGoldWidth;
 
-                // ガチンコスコア判定
-                if (currentPercent >= window.targetGoldLeft && currentPercent <= goldRight) {
+                // ガチンコスコア判定（★見た目のズレをなくすため、バーの中心位置で判定）
+                if (centerPercent >= window.targetGoldLeft && centerPercent <= goldRight + (barWidthPercent / 2)) {
                     const basePrize = 50 + (playerData.kick * 2) + playerData.technique;
                     const superPrize = basePrize * 2; 
                     playerData.money += superPrize;
@@ -811,7 +815,7 @@
                     `;
                     document.getElementById('battle-log').innerHTML = `👑 すみっこ金色ジャストミートでスーパーゴール！！`;
 
-                } else if (currentPercent >= window.targetSpotLeft && currentPercent <= 85) {
+                } else if (centerPercent >= window.targetSpotLeft && centerPercent <= 85 + (barWidthPercent / 2)) {
                     const prize = 50 + (playerData.kick * 2) + playerData.technique;
                     playerData.money += prize;
 
