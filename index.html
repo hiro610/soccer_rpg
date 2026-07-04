@@ -221,78 +221,99 @@
             updateUI();
         }
 
-       // --- 2. 音声認識（Web Speech API）とAI監督 ---
+        // --- 2. 音声認識（Web Speech API）とAI監督（手動停止トグル版） ---
+        let recognition = null;
+        let isListening = false; // いま声をききとり中かどうかのフラグ
+
         function startSpeech() {
             const voiceBtn = document.getElementById('btn-voice');
             const voiceLog = document.getElementById('voice-log');
 
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (!SpeechRecognition) {
-                voiceLog.innerText = "エラー: このスマホ・ブラウザはマイクに対応していません。iPhoneならSafari、AndroidならChromeで開いてね。";
+            // 【手動停止ロジック】もし、すでにききとり中なら、ボタン押下で手動ストップする
+            if (isListening && recognition) {
+                recognition.stop(); // 認識をストップ（これで音声が確定してonresultが走ります）
+                voiceBtn.innerText = "⏳ AIかんとくにかんそうを送信中...";
                 return;
             }
 
-            const recognition = new SpeechRecognition();
-            recognition.lang = 'ja-JP';
-            
-            // 【追加】モバイルでの認識率向上・タイムアウト対策のオプション
-            recognition.interimResults = false; // 途中の経過は無視して、話し終わりの確定結果だけをとる
-            recognition.maxAlternatives = 1;    // 候補は1つだけでOK
-
-            voiceBtn.innerText = "👂 きいているよ...";
-            voiceLog.innerText = "ボタンをおしたら、すぐにスマホにむかって声を出してね！";
-
-            recognition.start();
-
-            recognition.onresult = function(event) {
-                const text = event.results[0][0].transcript;
-                voiceLog.innerHTML = `<strong>ききとったよ：</strong> 「${text}」<br><br>⏳ AIかんとくがかんがえ中...`;
-
-                setTimeout(() => {
-                    let statusUpText = "";
-                    
-                    if (text.includes("シュート") || text.includes("点") || text.includes("キック")) {
-                        playerData.kick += 3;
-                        statusUpText = "⚽️ キックが 3 アップ！";
-                    } else if (text.includes("走") || text.includes("ダッシュ") || text.includes("スピード") || text.includes("はやい")) {
-                        playerData.speed += 3;
-                        statusUpText = "⚡️ スピードが 3 アップ！";
-                    } else if (text.includes("パス") || text.includes("リフティング") || text.includes("うまい") || text.includes("わざ")) {
-                        playerData.technique += 3;
-                        statusUpText = "🪄 テクニックが 3 アップ！";
-                    } else if (text.includes("ドリブル") || text.includes("たいりょく") || text.includes("スタミナ") || text.includes("しあい")) {
-                        playerData.stamina += 3;
-                        statusUpText = "❤️ スタミナが 3 アップ！";
-                    } else {
-                        playerData.kick += 1;
-                        playerData.speed += 1;
-                        playerData.technique += 1;
-                        playerData.stamina += 1;
-                        statusUpText = "🌟 すべての能力が 1 アップ！";
-                    }
-                    
-                    playerData.level += 1;
-                    voiceLog.innerHTML = `🤖 <strong>AIかんとく：</strong><br>「${text}」だね！素晴らしいれんしゅうだ！ごほうびに <strong>${statusUpText}</strong> レベルも上がったぞ！`;
-                    saveGame();
-                    voiceBtn.innerText = "🎙 れんしゅうを声でほうこく！";
-                }, 1500);
-            };
-
-            // 【強化】何のエラーで止まったかを画面に詳細に出力する
-            recognition.onerror = function(event) {
-                voiceBtn.innerText = "🎙 れんしゅうを声でほうこく！";
-                
-                let errorMsg = event.error;
-                if (event.error === 'not-allowed') {
-                    errorMsg = "❌ マイクの許可（きょか）がされていません。ブラウザの設定でマイクをONにしてね。";
-                } else if (event.error === 'no-speech') {
-                    errorMsg = "❌ 声が聞こえなかったよ。ボタンをおしたら、すぐに大きな声でしゃべってみてね！";
-                } else if (event.error === 'network') {
-                    errorMsg = "❌ ネットの接続（せつぞく）エラーです。";
+            // 初回だけインスタンスを作成して設定する
+            if (!recognition) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (!SpeechRecognition) {
+                    voiceLog.innerText = "エラー: このスマホ・ブラウザはマイクに対応していません。";
+                    return;
                 }
-                
-                voiceLog.innerHTML = `<span style="color: #ff1744; font-weight: bold;">${errorMsg}</span> (error-code: ${event.error})`;
-            };
+                recognition = new SpeechRecognition();
+                recognition.lang = 'ja-JP';
+                recognition.interimResults = false;
+                recognition.maxAlternatives = 1;
+
+                // ききとりが本当に始まったときの処理
+                recognition.onstart = function() {
+                    isListening = true;
+                    voiceBtn.innerText = "🛑 話しおわったらここをおす！";
+                    voiceBtn.style.backgroundColor = "#d32f2f"; // 録音中はハデな赤色に変える演出
+                    voiceBtn.style.boxShadow = "0 4px 0 #b71c1c";
+                    voiceLog.innerText = "スマホにむかって、がんばったことを話してね！話し終わったら、もういちど上の赤いボタンをおしてね。";
+                };
+
+                // 音声を聞き取ったときの処理（自動停止でも手動停止でもここが走ります）
+                recognition.onresult = function(event) {
+                    const text = event.results[0][0].transcript;
+                    voiceLog.innerHTML = `<strong>ききとったよ：</strong> 「${text}」<br><br>⏳ AIかんとくがかんがえ中...`;
+
+                    setTimeout(() => {
+                        let statusUpText = "";
+                        
+                        if (text.includes("シュート") || text.includes("点") || text.includes("キック")) {
+                            playerData.kick += 3;
+                            statusUpText = "⚽️ キックが 3 アップ！";
+                        } else if (text.includes("走") || text.includes("ダッシュ") || text.includes("スピード") || text.includes("はやい")) {
+                            playerData.speed += 3;
+                            statusUpText = "⚡️ スピードが 3 アップ！";
+                        } else if (text.includes("パス") || text.includes("リフティング") || text.includes("うまい") || text.includes("わざ")) {
+                            playerData.technique += 3;
+                            statusUpText = "🪄 テクニックが 3 アップ！";
+                        } else if (text.includes("ドリブル") || text.includes("たいりょく") || text.includes("スタミナ") || text.includes("しあい")) {
+                            playerData.stamina += 3;
+                            statusUpText = "❤️ スタミナが 3 アップ！";
+                        } else {
+                            playerData.kick += 1;
+                            playerData.speed += 1;
+                            playerData.technique += 1;
+                            playerData.stamina += 1;
+                            statusUpText = "🌟 すべての能力が 1 アップ！";
+                        }
+                        
+                        playerData.level += 1;
+                        voiceLog.innerHTML = `🤖 <strong>AIかんとく：</strong><br>「${text}」だね！素晴らしいれんしゅうだ！ごほうびに <strong>${statusUpText}</strong> レベルも上がったぞ！`;
+                        saveGame();
+                    }, 1500);
+                };
+
+                // エラーが起きたときの処理
+                recognition.onerror = function(event) {
+                    // 手動停止したときに一瞬発生する aborted エラーは正常なので無視する
+                    if (event.error !== 'aborted') {
+                        voiceLog.innerText = "うまくききとれなかったよ。もう一度ボタンをおしてね。(error: " + event.error + ")";
+                    }
+                };
+
+                // 自動でも手動でも、音声認識が完全に終了したときの片付け処理
+                recognition.onend = function() {
+                    isListening = false;
+                    voiceBtn.innerText = "🎙 れんしゅうを声でほうこく！";
+                    voiceBtn.style.backgroundColor = "#ff9800"; // 元のオレンジ色に戻す
+                    voiceBtn.style.boxShadow = "0 4px 0 #e65100";
+                };
+            }
+
+            // 聞き取りスタート
+            try {
+                recognition.start();
+            } catch (e) {
+                console.log(e);
+            }
         }
 
         // --- 3. タイミング合わせシュートバトル ---
