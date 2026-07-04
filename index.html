@@ -236,6 +236,7 @@
             z-index: 2;
         }
 
+        /* 黄金ゾーン */
         .gold-spot {
             position: absolute;
             width: 4%;
@@ -519,12 +520,12 @@
             }, 1500);
         }
 
-        // --- 3. 3連コンボガチンコアクションシステム ---
+        // --- 3. ＝★＝ 堅牢なステートマシン（バグ完全排除版） ＝★＝ ---
         let currentMatchStamina = 10;
         let maxMatchStamina = 10;
         let mashProgress = 0;
         let gameLoopInterval = null;
-        let matchPhase = "";
+        let matchPhase = "idle"; // ★状態を厳密に管理("idle", "dribble", "jump", "shoot", "result")
         
         let enemyPositionLeft = 110;
         let enemySpeed = 1.5;
@@ -548,13 +549,7 @@
             else { bar.style.background = 'linear-gradient(to right, #f44336, #ff5722)'; }
         }
 
-        // ★【完全修正】：試合の最初で、すべてのタイマーやバグの元になる要素を安全にリセットする
         function resetStadiumElements() {
-            if(gameLoopInterval) {
-                clearInterval(gameLoopInterval);
-                gameLoopInterval = null;
-            }
-
             const player = document.getElementById('stadium-player');
             const enemy = document.getElementById('stadium-enemy');
             const indicator = document.getElementById('final-indicator');
@@ -565,7 +560,7 @@
             
             if (indicator) {
                 indicator.style.animation = 'none';
-                indicator.style.left = ''; // ★インラインの値を確実に消去
+                indicator.style.left = ''; // ★インラインCSSを確実に消去し、フリーズを防止
             }
             
             isJumping = false;
@@ -577,8 +572,8 @@
         }
 
         function startMatchCombo() {
-            // タイマー多重起動防止ガード
-            if(gameLoopInterval) clearInterval(gameLoopInterval);
+            if (matchPhase !== "idle" && matchPhase !== "result") return;
+            if (gameLoopInterval) { clearInterval(gameLoopInterval); gameLoopInterval = null; }
 
             maxMatchStamina = playerData.stamina;
             currentMatchStamina = playerData.stamina;
@@ -598,6 +593,8 @@
             document.getElementById('battle-buttons-area').innerHTML = `<button id="btn-game-main" onclick="executeMash()" style="background-color: #29b6f6; box-shadow: 0 4px 0 #0288d1; width:85%; font-size:18px;">🔥 ダッシュ連打！！！</button>`;
 
             gameLoopInterval = setInterval(() => {
+                if (matchPhase !== "dribble") return; // 状態ガード
+
                 const decay = Math.max(0.5, 1.0 + (playerData.level * 0.04));
                 mashProgress = Math.max(0, mashProgress - decay);
                 document.getElementById('dribble-mash-bar').style.width = mashProgress + "%";
@@ -607,7 +604,9 @@
                 updateStaminaUI();
 
                 if (currentMatchStamina <= 1) {
+                    matchPhase = "transition"; // 多重呼び出し防止ロック
                     clearInterval(gameLoopInterval);
+                    gameLoopInterval = null;
                     isMatchForcedEnd = true; 
                     endDribblePhase();
                 }
@@ -621,7 +620,9 @@
             document.getElementById('dribble-mash-bar').style.width = mashProgress + "%";
 
             if (mashProgress >= 100) {
+                matchPhase = "transition"; // 多重呼び出し防止ロック
                 clearInterval(gameLoopInterval);
+                gameLoopInterval = null;
                 endDribblePhase();
             }
         }
@@ -629,7 +630,7 @@
         function endDribblePhase() {
             const log = document.getElementById('battle-log');
             if (isMatchForcedEnd) {
-                log.innerHTML = `<span style="color:#f44336; font-weight:bold;">🚨 スタミナぎれ！</span> つかれはてて走れなくなった！強制（きょうせい）ジャンプへ！`;
+                log.innerHTML = `<span style="color:#f44336; font-weight:bold;">🚨 スタミナぎれ！</span> つかれはてて強制（きょうせい）ジャンプへ！`;
             } else {
                 log.innerHTML = `<span style="color:#4caf50; font-weight:bold;">✨ ドリブル大せいこう！</span> メーターMAXであいてをぬきさった！`;
             }
@@ -640,7 +641,7 @@
             }, 1200);
         }
 
-        // ── フェーズ2：3人抜きジャンプ（★完全バグ修正：単一ループ構造） ──
+        // ── フェーズ2：3人抜きジャンプ（★完全単一ループ化・敵同士の間隔確保） ──
         function initJumpPhase() {
             matchPhase = "jump";
             enemyCounter = 1; 
@@ -663,8 +664,10 @@
 
             document.getElementById('battle-buttons-area').innerHTML = `<button id="btn-game-main" onclick="executeJump()" style="background-color: #ff9800; box-shadow: 0 4px 0 #e65100; width:85%; font-size:18px;">🪄 ジャンプ！！！</button>`;
 
-            // ★タイマーはこの1つだけを回し続ける
+            // ★この1つのタイマーだけで3人全員を処理しきる
             gameLoopInterval = setInterval(() => {
+                if (matchPhase !== "jump") return; // 状態ガード
+
                 enemyPositionLeft -= enemySpeed;
                 enemy.style.left = enemyPositionLeft + "%";
 
@@ -672,7 +675,6 @@
                 const dangerZoneLeft = 14 + techBonus;
                 const dangerZoneRight = 32 - techBonus;
 
-                // 物理衝突判定
                 if (enemyPositionLeft >= dangerZoneLeft && enemyPositionLeft <= dangerZoneRight) {
                     if (!isJumping && !hasHitThisEnemy) {
                         hasHitThisEnemy = true;
@@ -686,18 +688,18 @@
                     }
                 }
 
-                // 敵が左に通り過ぎたときの処理
+                // 敵が左へ完全に消えた時の処理
                 if (enemyPositionLeft <= -15) {
                     if (enemyCounter < 3) {
-                        // 2人目、3人目をこのループの中で即座に再配置
                         enemyCounter++;
                         hasHitThisEnemy = false;
-                        enemyPositionLeft = 110; 
+                        // ★【修正】：敵が連続ですぎないよう、画面のもっと右（130%）からスタートさせて「間（息継ぎ）」を作る
+                        enemyPositionLeft = 130; 
                         enemy.style.transform = "none";
                         enemySpeed = 1.6 + (playerData.level * 0.05) + (enemyCounter * 0.3);
                         log.innerHTML = `【フェーズ2】<span style="color:#ffeb3b; font-weight:bold;">【${enemyCounter}人目】</span>がくるぞ！ジャンプ！`;
                     } else {
-                        // 3人目が消え去ったら、このループを完全に殺してシュートへ安全に移行
+                        matchPhase = "transition"; // 多重呼び出し防止ロック
                         clearInterval(gameLoopInterval);
                         gameLoopInterval = null;
                         document.getElementById('ui-box-jump').style.display = 'none';
@@ -710,7 +712,7 @@
         }
 
         function executeJump() {
-            if (isJumping) return; 
+            if (matchPhase !== "jump" || isJumping) return; // 空中ジャンプ禁止ガード
             isJumping = true; 
 
             const player = document.getElementById('stadium-player');
@@ -722,7 +724,7 @@
             }, 380);
         }
 
-        // ── フェーズ3：最後のシュート（★金色を赤枠の「一番右端」に結合） ──
+        // ── フェーズ3：最後のシュート（★バグ完全修正版・金色右端配置） ──
         function initShootPhase() {
             matchPhase = "shoot";
             const enemy = document.getElementById('stadium-enemy');
@@ -733,17 +735,17 @@
             document.getElementById('battle-log').innerText = "【ファイナル】ラストシュート！動くバーを【一番右端の金色のわく】でとめると、おかねが2倍！！";
             document.getElementById('battle-buttons-area').innerHTML = `<button id="btn-game-main" onclick="executeShoot()" style="background-color: #29b6f6; box-shadow: 0 4px 0 #0288d1; width:85%; font-size:18px;">🔥 いま、シュート！！！</button>`;
 
-            // 赤枠の計算（右端は常に85%固定）
+            // 赤枠（右端は常に85%）
             const sweetSpot = document.getElementById('ui-sweet-spot');
             const spotWidth = Math.min(45, 14 + (playerData.kick / 3)); 
             const spotLeft = 85 - spotWidth;
             sweetSpot.style.width = spotWidth + "%";
             sweetSpot.style.left = spotLeft + "%";
 
-            // ★【修正】：ゴールドスポット（金色ゾーン）を赤枠の「一番右端（85%の位置）」に確実に配置
+            // ★【修正】：ゴールドスポットを赤枠の「一番右のハテ（85%）」にぴったり結合
             const goldSpot = document.getElementById('ui-gold-spot');
             const goldWidth = Math.min(8, 3.5 + (playerData.kick * 0.05)); 
-            const goldLeft = 85 - goldWidth; 
+            const goldLeft = 85 - goldWidth; // 赤枠の右端
             goldSpot.style.width = goldWidth + "%";
             goldSpot.style.left = goldLeft + "%";
 
@@ -751,18 +753,20 @@
             window.targetGoldLeft = goldLeft;
             window.targetGoldWidth = goldWidth;
 
-            const indicator = document.getElementById('final-indicator');
-            indicator.style.animation = 'none';
-            indicator.style.left = ''; // ここでも念のためクリア
-            indicator.offsetHeight; 
-
-            // ★【修正】：アニメーション速度の調整（早すぎて見えないのを防止し、マイルドに減速）
-            const staminaRatio = currentMatchStamina / maxMatchStamina;
+            // ★【バグ修正】：アニメーション速度の正常化（早すぎて見えないのを防止し、0.5秒〜1.2秒に調整）
+            const staminaRatio = Math.max(0, currentMatchStamina) / maxMatchStamina;
             const speedDuration = 0.5 + (staminaRatio * 0.7); // 満タンで1.2秒、ボロボロで0.5秒
-            indicator.style.animation = `moveBar ${speedDuration}s infinite linear alternate`;
+
+            const indicator = document.getElementById('final-indicator');
+            indicator.style.animation = 'none'; // 古いアニメーションを消す
+            indicator.offsetHeight; // リフロー（再描画）を強制
+            indicator.style.animation = `moveBar ${speedDuration}s infinite linear alternate`; // 新しい速度で動かす
         }
 
         function executeShoot() {
+            if (matchPhase !== "shoot") return;
+            matchPhase = "result"; // 多重呼び出し防止ロック
+
             const indicator = document.getElementById('final-indicator');
             const gaugeBox = document.getElementById('final-gauge-box');
             
@@ -771,8 +775,8 @@
             const parentWidth = gaugeBox.offsetWidth;
             const currentPercent = (parseFloat(leftStr) / parentWidth) * 100;
 
-            indicator.style.animation = 'none';
-            indicator.style.left = leftStr; 
+            indicator.style.animation = 'none'; // アニメーションを止める
+            indicator.style.left = leftStr; // その場にバーを残す
 
             document.getElementById('btn-game-main').disabled = true;
 
@@ -781,10 +785,15 @@
                 const announcement = document.getElementById('result-announcement');
                 const subText = document.getElementById('result-sub-text');
                 
+                // ★【バグ修正】：文字のアニメーションを確実にゼロにしてから、新しく付与する
+                announcement.style.animation = "none";
+                announcement.offsetHeight; // リフロー
+                
                 overlay.style.display = 'flex';
                 
                 const goldRight = window.targetGoldLeft + window.targetGoldWidth;
 
+                // ガチンコスコア判定
                 if (currentPercent >= window.targetGoldLeft && currentPercent <= goldRight) {
                     const basePrize = 50 + (playerData.kick * 2) + playerData.technique;
                     const superPrize = basePrize * 2; 
@@ -825,17 +834,16 @@
             }, 1000);
         }
 
-        // ★【完全修正】：文字点滅のバグと、戻れないバグを完全にシャットアウト
+        // ★【バグ完全修正】：文字点滅のアニメーションを確実に殺し、次の試合へ綺麗に戻す
         function closeResultOverlay() {
             document.getElementById('result-overlay').style.display = 'none';
-            
-            // ★文字のアニメーションを確実に無効化し、メモリを解放する
             document.getElementById('result-announcement').style.animation = 'none'; 
-            
             document.getElementById('ui-box-shoot').style.display = 'none';
+            
             document.getElementById('battle-buttons-area').innerHTML = `<button id="btn-game-main" onclick="startMatchCombo()" style="background-color: #d32f2f; box-shadow: 0 4px 0 #b71c1c; width: 85%;">しあいはじめる！</button>`;
             document.getElementById('battle-log').innerText = "コンボを繋げて次のゴールをめざそう！";
             
+            matchPhase = "idle"; // ★状態をアイドル（待機）に戻す
             resetStadiumElements();
             updateUI();
         }
