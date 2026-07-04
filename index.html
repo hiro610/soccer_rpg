@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>サッカーせいちょうRPG - スプリント1（UX最大化版）</title>
+    <title>サッカーせいちょうRPG - スプリント1（演出最大化版）</title>
     <style>
         body {
             font-family: 'Helvetica Neue', Arial, sans-serif;
@@ -128,7 +128,6 @@
             box-shadow: none;
         }
 
-        /* ★ゲージコンテナ：最初から配置を固定して表示しておく */
         .gauge-container {
             width: 80%;
             height: 25px;
@@ -138,8 +137,8 @@
             position: relative;
             overflow: hidden;
             border: 2px solid #fff;
-            display: block; /* ★常に表示 */
-            opacity: 0.3;   /* ★最初は準備中として薄くしておく */
+            display: block;
+            opacity: 0.3;
             transition: opacity 0.3s;
         }
 
@@ -171,13 +170,57 @@
             line-height: 1.5;
         }
 
-        /* しんさくリポート用の綺麗な枠線 */
         .report-box {
             border: 2px dashed #ffeb3b;
             padding: 10px;
             border-radius: 8px;
             margin-top: 10px;
             background: rgba(255,235,59,0.05);
+        }
+
+        /* ＝★＝ スタジアム電光掲示板風ポップアップ演出のCSS ＝★＝ */
+        #result-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        #result-announcement {
+            font-size: 46px;
+            font-weight: 900;
+            margin-bottom: 20px;
+            letter-spacing: 2px;
+        }
+
+        #result-sub-box {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            padding: 20px;
+            border-radius: 15px;
+            max-width: 350px;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        /* 演出用アニメーション */
+        @keyframes popIn {
+            0% { transform: scale(0.4); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        @keyframes goalFlash {
+            0% { transform: scale(1); text-shadow: 0 0 10px #fff, 0 0 20px #ffeb3b, 0 0 30px #ff9800; }
+            100% { transform: scale(1.08); text-shadow: 0 0 20px #fff, 0 0 40px #ff1744, 0 0 60px #ff1744; }
         }
 
         @keyframes bounce {
@@ -226,15 +269,14 @@
 
     <div class="card">
         <h3>ほうこく広場（AIかんとく）</h3>
-        
         <button id="btn-voice" onclick="startSpeech()">🎙 れんしゅうを声でほうこく！</button>
         
-        <div id="confirm-buttons-area" style="display: none; margin-top: 10px;">
+        <div class="log-box" id="voice-log">上のボタンをおして、「シュートのれんしゅうをしたよ！」などとしゃべね！</div>
+        
+        <div id="confirm-buttons-area" style="display: none; margin-top: 15px;">
             <button id="btn-confirm-ok" onclick="commitVoiceResult()" style="background-color: #4caf50; box-shadow: 0 4px 0 #388e3c; padding: 14px 28px; font-size: 18px;">👍 これでOK！</button>
             <button id="btn-confirm-retry" onclick="retryVoiceInput()" style="background-color: #f44336; box-shadow: 0 4px 0 #d32f2f; padding: 14px 28px; font-size: 18px;">🔄 やりなおす</button>
         </div>
-        
-        <div class="log-box" id="voice-log">上のボタンをおして、「シュートのれんしゅうをしたよ！」などとしゃべってね！</div>
     </div>
 
     <div class="card">
@@ -251,6 +293,14 @@
         </div>
         
         <div class="log-box" id="battle-log">じゅんびちゅう...</div>
+    </div>
+
+    <div id="result-overlay">
+        <div id="result-announcement">GOAL!!</div>
+        <div id="result-sub-box">
+            <p id="result-sub-text" style="margin: 0;"></p>
+        </div>
+        <button onclick="closeResultOverlay()" style="margin-top: 35px; font-size: 20px; padding: 14px 35px; background-color: #4caf50; box-shadow: 0 4px 0 #388e3c;">つぎの試合へ！</button>
     </div>
 
     <button onclick="resetData()" style="background: none; box-shadow: none; font-size: 10px; color: #aaa; margin-top: 30px;">データをさいしょからにする</button>
@@ -336,21 +386,20 @@
             updateUI();
         }
 
-        // --- 2. 音声認識（完全手動停止＆やり直し確認モード搭載版） ---
+        // --- 2. 音声認識 ---
         let recognition = null;
         let isListening = false;
         let latestTranscript = "";
-        let isWaitingConfirm = false; // ★確認待ち状態かどうかのフラグ
+        let isWaitingConfirm = false;
 
         function startSpeech() {
             const voiceBtn = document.getElementById('btn-voice');
             const voiceLog = document.getElementById('voice-log');
 
-            // 【手動停止アクション】ききとり中にボタンがおされたらマイクを止めて確認へ
             if (isListening && recognition) {
-                isWaitingConfirm = true; // 確認待ちモードをオン
+                isWaitingConfirm = true;
                 recognition.stop();
-                voiceBtn.style.display = "none"; // 録音ボタンを一旦かくす
+                voiceBtn.style.display = "none";
                 voiceLog.innerText = "⏳ いま話した言葉をあつめています...";
                 return;
             }
@@ -365,8 +414,6 @@
                 recognition.lang = 'ja-JP';
                 recognition.interimResults = true;
                 recognition.maxAlternatives = 1;
-                
-                // ★子供が考えながら途中で黙っても、絶対に勝手に終了しない魔法の呪文
                 recognition.continuous = true; 
 
                 recognition.onstart = function() {
@@ -385,8 +432,6 @@
                         resultText += event.results[i][0].transcript;
                     }
                     latestTranscript = resultText;
-                    
-                    // リアルタイムに子供の喋った言葉を画面にカタカタ出す演出（自動終了はしない）
                     voiceLog.innerHTML = `<strong>ききとり中：</strong> 「<span style="color: #00e5ff;">${latestTranscript}</span>」`;
                 };
 
@@ -397,12 +442,11 @@
                     }
                 };
 
-                // マイクが完全に停止したとき（手動停止ボタンがおされた後、ここにきます）
                 recognition.onend = function() {
                     isListening = false;
                     
                     if (isWaitingConfirm) {
-                        // ★確認モード用のUIを展開する
+                        // ★UI改善：テキストの下に確認ボタンエリアが出現
                         document.getElementById('confirm-buttons-area').style.display = 'block';
                         
                         if (latestTranscript.trim() === "") {
@@ -421,21 +465,18 @@
             try { recognition.start(); } catch (e) { console.log(e); }
         }
 
-        // やり直すボタンがおされたとき
         function retryVoiceInput() {
             isWaitingConfirm = false;
             document.getElementById('confirm-buttons-area').style.display = 'none';
             resetVoiceUI();
         }
 
-        // OKボタンがおされたとき（ここで初めて能力アップが確定する）
         function commitVoiceResult() {
             isWaitingConfirm = false;
             document.getElementById('confirm-buttons-area').style.display = 'none';
             processAIWithText(latestTranscript);
         }
 
-        // 音声UIを最初のオレンジボタン状態に戻す共通関数
         function resetVoiceUI() {
             const voiceBtn = document.getElementById('btn-voice');
             voiceBtn.style.display = 'inline-block';
@@ -445,7 +486,6 @@
             document.getElementById('voice-log').innerText = "上のボタンをおして、「シュートのれんしゅうをしたよ！」などとしゃべってね！";
         }
 
-        // ★AI監督のテキスト表示（見やすく改行＆装飾アップデート）
         function processAIWithText(text) {
             const voiceLog = document.getElementById('voice-log');
             voiceLog.innerHTML = `<strong>ききとったよ：</strong> 「${text}」<br><br>⏳ AIかんとくがかんがえ中...`;
@@ -475,7 +515,6 @@
                 
                 playerData.level += 1;
                 
-                // ★箇条書きとラインで見やすさを最大化したリポート画面
                 voiceLog.innerHTML = `
                     🤖 <strong>AIかんとく：</strong><br>
                     「${text}」だね！すばらしいれんしゅうだ！<br>
@@ -494,12 +533,11 @@
             }, 1500);
         }
 
-        // --- 3. タイミング合わせシュートバトル（位置完全固定版） ---
+        // --- 3. タイミング合わせシュートバトル ---
         function readyBattle() {
             const indicator = document.getElementById('indicator');
             const gaugeBox = document.getElementById('gauge-box');
             
-            // ★試合が始まったらゲージをクッキリ光らせて動き出す演出
             gaugeBox.style.opacity = '1';
             indicator.style.animation = 'none';
             indicator.offsetHeight;
@@ -528,25 +566,69 @@
             const battleLog = document.getElementById('battle-log');
             battleLog.innerText = "ゴゴゴゴ… ほのおのシュートをはなった！！";
 
+            // ★1.2秒後にスタジアム風ド派手ポップアップを出す
             setTimeout(() => {
+                const overlay = document.getElementById('result-overlay');
+                const announcement = document.getElementById('result-announcement');
+                const subText = document.getElementById('result-sub-text');
+                
+                // ポップアップを画面いっぱいに表示
+                overlay.style.display = 'flex';
+                
                 if (currentPercent >= 68 && currentPercent <= 87) {
+                    // 【大成功：ウルトラゴール】
                     const prize = 50 + (playerData.kick * 2) + playerData.technique;
                     playerData.money += prize;
-                    battleLog.innerHTML = `🎉 <strong>ジャストミート！さいきょうシュート！！</strong><br>あいてのキーパーをふっとばしてゴール！<br><br>💰 <strong>${prize}えん</strong> ゲットした！`;
+                    
+                    announcement.innerHTML = "⚽️🔥 GOOOOOAL!!! 🔥⚽️";
+                    announcement.style.color = "#ffeb3b"; // 金色
+                    // ポップイン＋激しい点滅フラッシュアニメーションを適用
+                    announcement.style.animation = "popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) both, goalFlash 0.3s infinite alternate";
+                    
+                    subText.innerHTML = `
+                        🎉 <strong>ジャストミート！さいきょうのシュート！！</strong><br>
+                        ものすごいスピードであいてのキーパーをふっとばしてゴールネットを突き破ったぞ！<br><br>
+                        💰 <strong>${prize}えん</strong> ゲット！
+                    `;
+                    battleLog.innerHTML = `🎉 さいきょうシュートでゴール！`;
                 } else {
                     const winChance = playerData.level + playerData.speed;
                     if (Math.random() * winChance > 8) {
+                        // 【成功：スピードねじ込みゴール】
                         playerData.money += 20;
-                        battleLog.innerHTML = `◯ <strong>ゴール！</strong><br>タイミングはズレたけど、${playerData.name}選手のスピードであいてをぬきさって決めたぞ！<br><br>💰 <strong>20えん</strong> ゲット！`;
+                        
+                        announcement.innerHTML = "⚽️ GOAL!!! 🏃‍♂️💨";
+                        announcement.style.color = "#00e5ff"; // スピードの青色
+                        announcement.style.animation = "popIn 0.4s both";
+                        
+                        subText.innerHTML = `
+                            ◯ <strong>ナイスゴール！</strong><br>
+                            タイミングは少しズレたけど、${playerData.name}選手の圧倒的なスピードであいてのディフェンダーをぬきさって決めたぞ！<br><br>
+                            💰 <strong>20えん</strong> ゲット！
+                        `;
+                        battleLog.innerHTML = `◯ スピードでねじこんだゴール！`;
                     } else {
-                        battleLog.innerHTML = `😢 <strong>キーパーにとめられた…</strong><br>もっとれんしゅうして、レベルやステータスを上げてリベンジだ！`;
+                        // 【失敗：キーパーセーブ】
+                        announcement.innerHTML = "🧤 SAVED... 😢";
+                        announcement.style.color = "#b0bec5"; // グレー
+                        announcement.style.animation = "popIn 0.4s both";
+                        
+                        subText.innerHTML = `
+                            あいてのキーパーにがっちりとめられてしまった…！<br>
+                            くやしい！もっとれんしゅうして、ステータスを上げてつぎは絶対にきめよう！
+                        `;
+                        battleLog.innerHTML = `😢 キーパーにとめられた…`;
                     }
                 }
                 
-                // ★結果が出たら、ゲージはそのまま位置をのこしつつ、少し薄く（準備中）にする
                 gaugeBox.style.opacity = '0.4';
                 saveGame();
             }, 1200);
+        }
+
+        // ポップアップを閉じる関数
+        function closeResultOverlay() {
+            document.getElementById('result-overlay').style.display = 'none';
         }
 
         function resetData() {
