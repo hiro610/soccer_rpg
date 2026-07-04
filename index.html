@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>サッカーせいちょうRPG - スプリント1（演出最大化版）</title>
+    <title>サッカーせいちょうRPG - スプリント1（3連コンボ・試合演出版）</title>
     <style>
         body {
             font-family: 'Helvetica Neue', Arial, sans-serif;
@@ -128,18 +128,63 @@
             box-shadow: none;
         }
 
+        /* ＝★＝ 【新設】動的試合アニメーションスタジアムのCSS ＝★＝ */
+        .mini-stadium {
+            width: 90%;
+            height: 110px;
+            background: linear-gradient(#2e7d32 80%, #1b5e20 100%);
+            border: 2px solid #fff;
+            border-radius: 10px;
+            margin: 10px auto;
+            position: relative;
+            overflow: hidden;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.4);
+        }
+
+        .stadium-line {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            width: 2px;
+            height: 100%;
+            background: rgba(255,255,255,0.4);
+        }
+
+        /* 試合中うごくプレイヤーキャラの枠 */
+        .match-avatar {
+            position: absolute;
+            bottom: 15px;
+            left: 10%;
+            width: 50px;
+            height: 50px;
+            font-size: 40px;
+            transition: left 0.1s ease-out, bottom 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 10;
+        }
+        .match-avatar img { width: 100%; height: 100%; object-fit: contain; }
+
+        /* 迫りくるディフェンダー（敵）の枠 */
+        .match-enemy {
+            position: absolute;
+            bottom: 15px;
+            right: -60px;
+            width: 50px;
+            height: 50px;
+            font-size: 40px;
+            z-index: 9;
+            transition: right 0.3s ease-in-out, transform 0.2s;
+        }
+
+        /* 連打ゲージ・シュートゲージの共通デザイン */
         .gauge-container {
             width: 80%;
-            height: 25px;
+            height: 20px;
             background-color: #ddd;
-            margin: 15px auto;
-            border-radius: 12px;
+            margin: 10px auto;
+            border-radius: 10px;
             position: relative;
             overflow: hidden;
             border: 2px solid #fff;
-            display: block;
-            opacity: 0.3;
-            transition: opacity 0.3s;
         }
 
         .sweet-spot {
@@ -156,6 +201,14 @@
             background-color: #333;
             position: absolute;
             left: 0;
+        }
+
+        /* 連打のプログレスバー */
+        .mash-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(to right, #ffeb3b, #ff9800);
+            transition: width 0.1s ease-out;
         }
 
         .log-box {
@@ -178,7 +231,7 @@
             background: rgba(255,235,59,0.05);
         }
 
-        /* ＝★＝ スタジアム電光掲示板風ポップアップ演出のCSS ＝★＝ */
+        /* 大興奮のゴールポップアップ */
         #result-overlay {
             display: none;
             position: fixed;
@@ -212,25 +265,22 @@
             line-height: 1.6;
         }
 
-        /* 演出用アニメーション */
+        /* 激しいアニメーション達 */
         @keyframes popIn {
             0% { transform: scale(0.4); opacity: 0; }
             100% { transform: scale(1); opacity: 1; }
         }
-
         @keyframes goalFlash {
             0% { transform: scale(1); text-shadow: 0 0 10px #fff, 0 0 20px #ffeb3b, 0 0 30px #ff9800; }
             100% { transform: scale(1.08); text-shadow: 0 0 20px #fff, 0 0 40px #ff1744, 0 0 60px #ff1744; }
         }
-
         @keyframes bounce {
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-10px); }
         }
-
-        @keyframes moveBar {
-            0% { left: 0%; }
-            100% { left: 96%; }
+        @keyframes slideAttack {
+            0% { transform: translateX(0) translateY(0); }
+            100% { transform: translateX(-30px) translateY(10px) rotate(-20deg); }
         }
     </style>
 </head>
@@ -248,11 +298,9 @@
 
     <div class="card status-card" id="status-card-element">
         <div id="bg-img-container"></div>
-
         <div class="card-content" id="fallback-emoji-container" style="display: none; height: 100%; justify-content: center;">
             <div class="character-emoji-area" id="txt-fallback-emoji">👦</div>
         </div>
-
         <div class="card-content" style="margin-top: auto;">
             <div class="glass-box">
                 <p style="font-size: 15px; font-weight: bold; line-height: 1.6; margin: 0; text-align: left; padding-left: 10px;">
@@ -270,9 +318,7 @@
     <div class="card">
         <h3>ほうこく広場（AIかんとく）</h3>
         <button id="btn-voice" onclick="startSpeech()">🎙 れんしゅうを声でほうこく！</button>
-        
-        <div class="log-box" id="voice-log">上のボタンをおして、「シュートのれんしゅうをしたよ！」などとしゃべね！</div>
-        
+        <div class="log-box" id="voice-log">上のボタンをおして、「シュートのれんしゅうをしたよ！」などとしゃべってね！</div>
         <div id="confirm-buttons-area" style="display: none; margin-top: 15px;">
             <button id="btn-confirm-ok" onclick="commitVoiceResult()" style="background-color: #4caf50; box-shadow: 0 4px 0 #388e3c; padding: 14px 28px; font-size: 18px;">👍 これでOK！</button>
             <button id="btn-confirm-retry" onclick="retryVoiceInput()" style="background-color: #f44336; box-shadow: 0 4px 0 #d32f2f; padding: 14px 28px; font-size: 18px;">🔄 やりなおす</button>
@@ -280,19 +326,22 @@
     </div>
 
     <div class="card">
-        <h3>VS ライバルチーム</h3>
+        <h3>VS ライバルチーム（3れんコンボ！）</h3>
         
-        <div class="gauge-container" id="gauge-box">
-            <div class="sweet-spot"></div>
-            <div class="gauge-bar" id="indicator"></div>
+        <div class="mini-stadium">
+            <div class="stadium-line"></div>
+            <div class="match-avatar" id="stadium-player">👦</div>
+            <div class="match-enemy" id="stadium-enemy">🏃‍♂️</div>
         </div>
-        
+
+        <div id="game-mechanic-zone" style="min-height: 40px; margin: 5px 0;">
+            </div>
+
         <div id="battle-buttons-area">
-            <button id="btn-battle-init" onclick="readyBattle()" style="background-color: #d32f2f; box-shadow: 0 4px 0 #b71c1c;">しあいはじめる！</button>
-            <button id="btn-shoot" onclick="fireShoot()" style="background-color: #29b6f6; box-shadow: 0 4px 0 #0288d1; display: none;">🔥 いま、シュート！！</button>
+            <button id="btn-game-main" onclick="startMatchCombo()" style="background-color: #d32f2f; box-shadow: 0 4px 0 #b71c1c; width: 85%;">しあいはじめる！</button>
         </div>
         
-        <div class="log-box" id="battle-log">じゅんびちゅう...</div>
+        <div class="log-box" id="battle-log">ドリブル ➔ ジャンプ ➔ シュートの3連コンボできめろ！</div>
     </div>
 
     <div id="result-overlay">
@@ -307,24 +356,13 @@
 
     <script>
         // --- 1. グローバル変数とセーブデータの定義 ---
-        let playerData = {
-            name: "",
-            level: 1,
-            kick: 10,
-            speed: 10,
-            technique: 10,
-            stamina: 10,
-            money: 0
-        };
+        let playerData = { name: "", level: 1, kick: 10, speed: 10, technique: 10, stamina: 10, money: 0 };
+        let imageSrcGlobal = "avatar_j.png"; // 現在のステージ画像を保持
 
         window.onload = function() {
             const savedData = localStorage.getItem('soccer_rpg_save');
             if (savedData) { playerData = JSON.parse(savedData); }
-            if (!playerData.name) {
-                setTimeout(() => { askName(); }, 500);
-            } else {
-                updateUI();
-            }
+            if (!playerData.name) { setTimeout(() => { askName(); }, 500); } else { updateUI(); }
         };
 
         function askName() {
@@ -335,10 +373,7 @@
 
         function changeName() {
             let inputName = prompt("新しい なまえを おしえてね！", playerData.name);
-            if (inputName !== null && inputName.trim() !== "") {
-                playerData.name = inputName;
-                saveGame();
-            }
+            if (inputName !== null && inputName.trim() !== "") { playerData.name = inputName; saveGame(); }
         }
 
         function updateUI() {
@@ -354,203 +389,238 @@
             const bgImgContainer = document.getElementById('bg-img-container');
             const fallbackContainer = document.getElementById('fallback-emoji-container');
             const fallbackEmoji = document.getElementById('txt-fallback-emoji');
+            const stPlayer = document.getElementById('stadium-player');
             
-            let imageSrc = "";
-            let emojiText = "";
+            let emojiText = "👦";
 
             if (playerData.level >= 20) {
-                stageBadge.innerText = "🏆 せかいチャンピオン！";
-                stageBadge.style.backgroundColor = "#ffd700";
-                imageSrc = "avatar_clear.png";
-                emojiText = "👑🏆";
+                stageBadge.innerText = "🏆 せかいチャンピオン！"; stageBadge.style.backgroundColor = "#ffd700";
+                imageSrcGlobal = "avatar_clear.png"; emojiText = "👑🏆";
             } else if (playerData.level >= 10) {
-                stageBadge.innerText = "🌎 ワールドカップへん";
-                stageBadge.style.backgroundColor = "#ff4081";
-                imageSrc = "avatar_w.png";
-                emojiText = "🇯🇵🏃‍♂️";
+                stageBadge.innerText = "🌎 ワールドカップへん"; stageBadge.style.backgroundColor = "#ff4081";
+                imageSrcGlobal = "avatar_w.png"; emojiText = "🇯🇵🏃‍♂️";
             } else {
-                stageBadge.innerText = "⚽️ Jリーグへん";
-                stageBadge.style.backgroundColor = "#00e5ff";
-                imageSrc = "avatar_j.png";
-                emojiText = "👦";
+                stageBadge.innerText = "⚽️ Jリーグへん"; stageBadge.style.backgroundColor = "#00e5ff";
+                imageSrcGlobal = "avatar_j.png"; emojiText = "👦";
             }
 
             fallbackEmoji.innerText = emojiText;
             fallbackContainer.style.display = 'none';
 
-            bgImgContainer.innerHTML = `<img src="${imageSrc}" class="card-background-img" onload="document.getElementById('fallback-emoji-container').style.display='none';" onerror="this.style.display='none'; document.getElementById('fallback-emoji-container').style.display='block';">`;
+            // スタジアム内のアバターも画像（無ければ絵文字）に連動
+            const htmlWithImage = `<img src="${imageSrcGlobal}" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                                   <span style="display:none;">${emojiText}</span>`;
+            stPlayer.innerHTML = htmlWithImage;
+
+            bgImgContainer.innerHTML = `<img src="${imageSrcGlobal}" class="card-background-img" onload="document.getElementById('fallback-emoji-container').style.display='none';" onerror="this.style.display='none'; document.getElementById('fallback-emoji-container').style.display='block';">`;
         }
 
-        function saveGame() {
-            localStorage.setItem('soccer_rpg_save', JSON.stringify(playerData));
-            updateUI();
-        }
+        function saveGame() { localStorage.setItem('soccer_rpg_save', JSON.stringify(playerData)); updateUI(); }
 
         // --- 2. 音声認識 ---
-        let recognition = null;
-        let isListening = false;
-        let latestTranscript = "";
-        let isWaitingConfirm = false;
+        let recognition = null; let isListening = false; let latestTranscript = ""; let isWaitingConfirm = false;
 
         function startSpeech() {
-            const voiceBtn = document.getElementById('btn-voice');
-            const voiceLog = document.getElementById('voice-log');
-
-            if (isListening && recognition) {
-                isWaitingConfirm = true;
-                recognition.stop();
-                voiceBtn.style.display = "none";
-                voiceLog.innerText = "⏳ いま話した言葉をあつめています...";
-                return;
-            }
-
+            const voiceBtn = document.getElementById('btn-voice'); const voiceLog = document.getElementById('voice-log');
+            if (isListening && recognition) { isWaitingConfirm = true; recognition.stop(); voiceBtn.style.display = "none"; voiceLog.innerText = "⏳ いま話した言葉をあつめています..."; return; }
             if (!recognition) {
                 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-                if (!SpeechRecognition) {
-                    voiceLog.innerText = "エラー: このスマホ・ブラウザはマイクに対応していません。";
-                    return;
-                }
-                recognition = new SpeechRecognition();
-                recognition.lang = 'ja-JP';
-                recognition.interimResults = true;
-                recognition.maxAlternatives = 1;
-                recognition.continuous = true; 
-
-                recognition.onstart = function() {
-                    isListening = true;
-                    isWaitingConfirm = false;
-                    latestTranscript = "";
-                    voiceBtn.innerText = "🛑 話しおわったらここをおす！";
-                    voiceBtn.style.backgroundColor = "#d32f2f";
-                    voiceBtn.style.boxShadow = "0 4px 0 #b71c1c";
-                    voiceLog.innerText = "スマホにむかってゆっくり話してね！考えながら話しても大丈夫だよ。";
-                };
-
-                recognition.onresult = function(event) {
-                    let resultText = "";
-                    for (let i = event.resultIndex; i < event.results.length; i++) {
-                        resultText += event.results[i][0].transcript;
-                    }
-                    latestTranscript = resultText;
-                    voiceLog.innerHTML = `<strong>ききとり中：</strong> 「<span style="color: #00e5ff;">${latestTranscript}</span>」`;
-                };
-
-                recognition.onerror = function(event) {
-                    if (event.error !== 'aborted') {
-                        voiceLog.innerText = "うまくききとれなかったよ。(error: " + event.error + ")";
-                        resetVoiceUI();
-                    }
-                };
-
-                recognition.onend = function() {
-                    isListening = false;
-                    
-                    if (isWaitingConfirm) {
-                        // ★UI改善：テキストの下に確認ボタンエリアが出現
-                        document.getElementById('confirm-buttons-area').style.display = 'block';
-                        
-                        if (latestTranscript.trim() === "") {
-                            document.getElementById('voice-log').innerHTML = `うーん、なにも聞こえなかったよ。<br>もういちど「やりなおす」をおして話してみてね！`;
-                            document.getElementById('btn-confirm-ok').disabled = true;
-                        } else {
-                            document.getElementById('voice-log').innerHTML = `🤖 <strong>AIかんとく：</strong><br>「<span style="color: #00e5ff; font-size:16px;">${latestTranscript}</span>」<br>ってきこえたぞ！これでOKなら、したの緑のボタンをおしてね！`;
-                            document.getElementById('btn-confirm-ok').disabled = false;
-                        }
-                    } else {
-                        resetVoiceUI();
-                    }
-                };
+                if (!SpeechRecognition) { voiceLog.innerText = "エラー: マイク非対応"; return; }
+                recognition = new SpeechRecognition(); recognition.lang = 'ja-JP'; recognition.interimResults = true; recognition.maxAlternatives = 1; recognition.continuous = true; 
+                recognition.onstart = function() { isListening = true; isWaitingConfirm = false; latestTranscript = ""; voiceBtn.innerText = "🛑 話しおわったらここをおす！"; voiceBtn.style.backgroundColor = "#d32f2f"; voiceBtn.style.boxShadow = "0 4px 0 #b71c1c"; voiceLog.innerText = "スマホにむかってゆっくり話してね！"; };
+                recognition.onresult = function(event) { let resultText = ""; for (let i = event.resultIndex; i < event.results.length; i++) { resultText += event.results[i][0].transcript; } latestTranscript = resultText; voiceLog.innerHTML = `<strong>ききとり中：</strong> 「<span style="color: #00e5ff;">${latestTranscript}</span>」`; };
+                recognition.onerror = function(event) { if (event.error !== 'aborted') { voiceLog.innerText = "エラー発生"; resetVoiceUI(); } };
+                recognition.onend = function() { isListening = false; if (isWaitingConfirm) { document.getElementById('confirm-buttons-area').style.display = 'block'; if (latestTranscript.trim() === "") { document.getElementById('voice-log').innerHTML = `何も聞こえなかったよ。`; document.getElementById('btn-confirm-ok').disabled = true; } else { document.getElementById('voice-log').innerHTML = `🤖 <strong>AIかんとく：</strong><br>「<span style="color: #00e5ff; font-size:16px;">${latestTranscript}</span>」<br>でOKなら緑のボタンをおしてね！`; document.getElementById('btn-confirm-ok').disabled = false; } } else { resetVoiceUI(); } };
             }
-
             try { recognition.start(); } catch (e) { console.log(e); }
         }
-
-        function retryVoiceInput() {
-            isWaitingConfirm = false;
-            document.getElementById('confirm-buttons-area').style.display = 'none';
-            resetVoiceUI();
-        }
-
-        function commitVoiceResult() {
-            isWaitingConfirm = false;
-            document.getElementById('confirm-buttons-area').style.display = 'none';
-            processAIWithText(latestTranscript);
-        }
-
-        function resetVoiceUI() {
-            const voiceBtn = document.getElementById('btn-voice');
-            voiceBtn.style.display = 'inline-block';
-            voiceBtn.innerText = "🎙 れんしゅうを声でほうこく！";
-            voiceBtn.style.backgroundColor = "#ff9800";
-            voiceBtn.style.boxShadow = "0 4px 0 #e65100";
-            document.getElementById('voice-log').innerText = "上のボタンをおして、「シュートのれんしゅうをしたよ！」などとしゃべってね！";
-        }
-
+        function retryVoiceInput() { isWaitingConfirm = false; document.getElementById('confirm-buttons-area').style.display = 'none'; resetVoiceUI(); }
+        function commitVoiceResult() { isWaitingConfirm = false; document.getElementById('confirm-buttons-area').style.display = 'none'; processAIWithText(latestTranscript); }
+        function resetVoiceUI() { const voiceBtn = document.getElementById('btn-voice'); voiceBtn.style.display = 'inline-block'; voiceBtn.innerText = "🎙 れんしゅうを声でほうこく！"; voiceBtn.style.backgroundColor = "#ff9800"; voiceBtn.style.boxShadow = "0 4px 0 #e65100"; document.getElementById('voice-log').innerText = "上のボタンをおして練習を教えてね！"; }
         function processAIWithText(text) {
-            const voiceLog = document.getElementById('voice-log');
-            voiceLog.innerHTML = `<strong>ききとったよ：</strong> 「${text}」<br><br>⏳ AIかんとくがかんがえ中...`;
-
+            const voiceLog = document.getElementById('voice-log'); voiceLog.innerHTML = `⏳ 査定中...`;
             setTimeout(() => {
                 let statusUpText = "";
-                
-                if (text.includes("シュート") || text.includes("点") || text.includes("キック")) {
-                    playerData.kick += 3;
-                    statusUpText = "⚽️ キックが 【3】 アップ！";
-                } else if (text.includes("走") || text.includes("ダッシュ") || text.includes("スピード") || text.includes("はやい")) {
-                    playerData.speed += 3;
-                    statusUpText = "⚡️ スピードが 【3】 アップ！";
-                } else if (text.includes("パス") || text.includes("リフティング") || text.includes("うまい") || text.includes("わざ")) {
-                    playerData.technique += 3;
-                    statusUpText = "🪄 テクニックが 【3】 アップ！";
-                } else if (text.includes("ドリブル") || text.includes("たいりょく") || text.includes("スタミナ") || text.includes("しあい")) {
-                    playerData.stamina += 3;
-                    statusUpText = "❤️ スタミナが 【3】 アップ！";
-                } else {
-                    playerData.kick += 1;
-                    playerData.speed += 1;
-                    playerData.technique += 1;
-                    playerData.stamina += 1;
-                    statusUpText = "🌟 すべての能力が 【1】 アップ！";
-                }
-                
+                if (text.includes("シュート") || text.includes("点") || text.includes("キック")) { playerData.kick += 3; statusUpText = "⚽️ キックが 【3】 アップ！"; }
+                else if (text.includes("走") || text.includes("ダッシュ") || text.includes("スピード") || text.includes("はやい")) { playerData.speed += 3; statusUpText = "⚡️ スピードが 【3】 アップ！"; }
+                else if (text.includes("パス") || text.includes("リフティング") || text.includes("うまい") || text.includes("わざ")) { playerData.technique += 3; statusUpText = "🪄 テクニックが 【3】 アップ！"; }
+                else if (text.includes("ドリブル") || text.includes("たいりょく") || text.includes("スタミナ") || text.includes("しあい")) { playerData.stamina += 3; statusUpText = "❤️ スタミナが 【3】 アップ！"; }
+                else { playerData.kick += 1; playerData.speed += 1; playerData.technique += 1; playerData.stamina += 1; statusUpText = "🌟 すべての能力が 【1】 アップ！"; }
                 playerData.level += 1;
-                
-                voiceLog.innerHTML = `
-                    🤖 <strong>AIかんとく：</strong><br>
-                    「${text}」だね！すばらしいれんしゅうだ！<br>
-                    
-                    <div class="report-box">
-                        <strong>📊 しんさくリポート</strong><br>
-                        ━━━━━━━━━━━━━━━<br>
-                        ${statusUpText}<br>
-                        🆙 <strong>レベルが 【1】 あがったぞ！</strong><br>
-                        ━━━━━━━━━━━━━━━
-                    </div>
-                    <br>
-                    <button onclick="resetVoiceUI()" style="background-color: #4caf50; padding: 6px 14px; font-size: 13px; margin: 0; box-shadow: 0 3px 0 #388e3c;">つぎのれんしゅうへ</button>
-                `;
+                voiceLog.innerHTML = `🤖 <strong>AIかんとく：</strong><br>「${text}」だね！<div class="report-box"><strong>📊 しんさくリポート</strong><br>━<br>${statusUpText}<br>🆙 <strong>レベルが 【1】 あがったぞ！</strong><br>━</div><br><button onclick="resetVoiceUI()" style="background-color: #4caf50; padding: 6px 14px; font-size: 13px; margin: 0;">つぎのれんしゅうへ</button>`;
                 saveGame();
             }, 1500);
         }
 
-        // --- 3. タイミング合わせシュートバトル ---
-        function readyBattle() {
-            const indicator = document.getElementById('indicator');
-            const gaugeBox = document.getElementById('gauge-box');
-            
-            gaugeBox.style.opacity = '1';
-            indicator.style.animation = 'none';
-            indicator.offsetHeight;
-            indicator.style.animation = 'moveBar 1.2s infinite linear alternate';
+        // --- 3. ＝★＝ 3連コンボ試合システム（ステートマシン） ＝★＝ ---
+        let currentMatchStamina = 10; // 今回の試合の残りスタミナ
+        let mashCount = 0;           // 連打数カウンター
+        let mashTimer = null;
+        let jumpReactionTimer = null;
+        let jumpTriggerTime = 0;
+        let finalShootPercent = 0;
 
-            document.getElementById('btn-battle-init').style.display = 'none';
-            document.getElementById('btn-shoot').style.display = 'inline-block';
-            document.getElementById('battle-log').innerText = "うごくバーをよーく狙って、赤いゾーンでシュートをおせ！！";
+        function resetStadiumElements() {
+            const player = document.getElementById('stadium-player');
+            const enemy = document.getElementById('stadium-enemy');
+            player.style.left = "10%"; player.style.bottom = "15px";
+            enemy.style.right = "-60px"; enemy.style.animation = "none";
+            enemy.innerText = "🏃‍♂️";
         }
 
-        function fireShoot() {
-            const indicator = document.getElementById('indicator');
-            const gaugeBox = document.getElementById('gauge-box');
+        // しあいはじめる！が押された
+        function startMatchCombo() {
+            currentMatchStamina = playerData.stamina; // プレイヤーの現在スタミナをコピー
+            resetStadiumElements();
+            initDribblePhase();
+        }
+
+        // ── フェーズ1：ボタン連打でドリブル ──
+        function initDribblePhase() {
+            mashCount = 0;
+            const zone = document.getElementById('game-mechanic-zone');
+            const btnZone = document.getElementById('battle-buttons-area');
+            const log = document.getElementById('battle-log');
+
+            log.innerText = "【フェーズ1】ボタンをれんだして、あいてをぬきされ！！";
+            zone.innerHTML = `<div class="gauge-container"><div class="mash-bar" id="dribble-mash-bar"></div></div>`;
+            btnZone.innerHTML = `<button id="btn-game-main" onclick="executeMash()" style="background-color: #29b6f6; box-shadow: 0 4px 0 #0288d1; width:85%; font-size:18px;">🔥 ダッシュれんだ！！！</button>`;
+
+            let timeLeft = 3.0;
+            mashTimer = setInterval(() => {
+                timeLeft -= 0.1;
+                if (timeLeft <= 0) {
+                    clearInterval(mashTimer);
+                    endDribblePhase();
+                }
+            }, 100);
+        }
+
+        function executeMash() {
+            mashCount++;
+            const player = document.getElementById('stadium-player');
+            const targetMash = 14 + (playerData.speed / 5); // スピードが高いと目標値が有利に
+            const percent = Math.min((mashCount / targetMash) * 100, 100);
+            
+            document.getElementById('dribble-mash-bar').style.width = percent + "%";
+            // 連打に合わせてあすき選手が右に進む動的スライド演出！
+            player.style.left = (10 + (percent * 0.4)) + "%";
+        }
+
+        function endDribblePhase() {
+            const log = document.getElementById('battle-log');
+            const isSuccess = mashCount >= 15; // 15回連打で成功
+
+            if (isSuccess) {
+                log.innerHTML = `<span style="color:#4caf50; font-weight:bold;">✨ ドリブル大せいこう！</span> あいてをぬきさったぞ！`;
+            } else {
+                currentMatchStamina = Math.max(1, currentMatchStamina - 3); // 失敗でスタミナ減少
+                log.innerHTML = `<span style="color:#f44336; font-weight:bold;">😢 つかまった！</span> 体力をうばわれた（スタミナ-3）`;
+            }
+
+            // 1.5秒後に自動でジャンプフェーズへスライド
+            setTimeout(() => { initJumpPhase(); }, 1500);
+        }
+
+        // ── フェーズ2：スライディングをジャンプでよける（反射神経テスト） ──
+        function initJumpPhase() {
+            const zone = document.getElementById('game-mechanic-zone');
+            const btnZone = document.getElementById('battle-buttons-area');
+            const log = document.getElementById('battle-log');
+            const enemy = document.getElementById('stadium-enemy');
+
+            log.innerText = "【フェーズ2】あいてのスライディングがくるぞ… まて…";
+            zone.innerHTML = `<div style="font-size:18px; font-weight:bold; color:#ffeb3b; height:20px;" id="jump-signal-text">まだおしちゃダメ…</div>`;
+            // アクションボタンは最初無効化（disabled）にしておく
+            btnZone.innerHTML = `<button id="btn-game-main" onclick="executeJump()" disabled style="background-color: #e0e0e0; box-shadow: 0 4px 0 #9e9e9e; width:85%;">🪄 ジャンプ！！！</button>`;
+
+            // 敵（スライディングマン）が画面外からスタンバイ位置へスライドイン
+            enemy.innerText = "🏃‍♂️💨";
+            enemy.style.right = "15%";
+
+            // 1.2秒〜2.5秒のランダムなタイミングで「ジャンプシグナル」を発火
+            const randomDelay = 1200 + Math.random() * 1300;
+            jumpReactionTimer = setTimeout(() => {
+                const btn = document.getElementById('btn-game-main');
+                const signal = document.getElementById('jump-signal-text');
+                
+                signal.innerHTML = `<span style="color:#ff1744; font-size:20px; animation:bounce 0.2s infinite;">⚠️ あぶない！いま、よけろ！！！</span>`;
+                btn.disabled = false;
+                btn.style.backgroundColor = "#ff9800";
+                btn.style.boxShadow = "0 4px 0 #e65100";
+                
+                // シグナルが出た時刻をミリ秒で記録
+                jumpTriggerTime = Date.now();
+                
+                // 0.55秒（550ms）以内に押せないと強制失敗のタイマー
+                jumpReactionTimer = setTimeout(() => { endJumpPhase(false); }, 550);
+            }, randomDelay);
+        }
+
+        function executeJump() {
+            clearTimeout(jumpReactionTimer); // 強制失敗タイマーを解除
+            const reactionTime = Date.now() - jumpTriggerTime;
+            // 技量（テクニック）が高いと、猶予が少し有利になる判定
+            const successLimit = 420 + (playerData.technique * 3);
+
+            if (reactionTime <= successLimit) {
+                // ジャンプ大成功！あすき選手が上にビューンと跳ね上がるCSSアニメーション！
+                const player = document.getElementById('stadium-player');
+                player.style.bottom = "65px";
+                setTimeout(() => { player.style.bottom = "15px"; }, 350);
+                endJumpPhase(true);
+            } else {
+                endJumpPhase(false);
+            }
+        }
+
+        function endJumpPhase(isSuccess) {
+            const log = document.getElementById('battle-log');
+            const enemy = document.getElementById('stadium-enemy');
+            const btn = document.getElementById('btn-game-main');
+            if(btn) btn.disabled = true;
+
+            if (isSuccess) {
+                log.innerHTML = `<span style="color:#4caf50; font-weight:bold;">✨ ナイスジャンプ！</span> スライディングをかんぺきにかわした！`;
+                enemy.style.right = "80%"; // 敵が空振りして左へスライド
+            } else {
+                currentMatchStamina = Math.max(1, currentMatchStamina - 3); // 失敗でファールされてスタミナ減
+                enemy.style.transform = "scale(1.2)"; // 敵が激しくぶつかってくる
+                document.getElementById('stadium-player').style.left = "5%"; // ふっとばされる
+                log.innerHTML = `<span style="color:#f44336; font-weight:bold;">😢 ドカン！ファールされた！</span> はげしくたおされた（スタミナ-3）`;
+            }
+
+            setTimeout(() => {
+                enemy.style.transform = "none";
+                initShootPhase();
+            }, 1800);
+        }
+
+        // ── フェーズ3：最後のシュートゲージ（タイミング合わせ） ──
+        function initShootPhase() {
+            const zone = document.getElementById('game-mechanic-zone');
+            const btnZone = document.getElementById('battle-buttons-area');
+            const log = document.getElementById('battle-log');
+            const enemy = document.getElementById('stadium-enemy');
+
+            enemy.innerText = "🧤"; // 敵がゴールキーパーに変身！
+            enemy.style.right = "5%";
+
+            log.innerText = "【ファイナル】ラストシュート！赤いゾーンをねらってボタンをおせ！";
+            // 常に上がゲージ、下がボタンの配置に完全固定
+            zone.innerHTML = `<div class="gauge-container" style="opacity:1;" id="final-gauge-box"><div class="sweet-spot"></div><div class="gauge-bar" id="final-indicator"></div></div>`;
+            btnZone.innerHTML = `<button id="btn-game-main" onclick="executeShoot()" style="background-color: #29b6f6; box-shadow: 0 4px 0 #0288d1; width:85%; font-size:18px;">🔥 いま、シュート！！！</button>`;
+
+            // ★スタミナ連動ロジック！ここまでのミスでスタミナが減っていると、ゲージ速度が超高速化！
+            const indicator = document.getElementById('final-indicator');
+            // 通常スタミナ10で1.2秒。スタミナ3だと0.5秒になりウルトラ超高速！
+            const speedDuration = Math.max(0.4, (currentMatchStamina / 10) * 1.2); 
+            indicator.style.animation = `moveBar ${speedDuration}s infinite linear alternate`;
+        }
+
+        function executeShoot() {
+            const indicator = document.getElementById('final-indicator');
+            const gaugeBox = document.getElementById('final-gauge-box');
             
             const computedStyle = window.getComputedStyle(indicator);
             const leftStr = computedStyle.getPropertyValue('left');
@@ -560,75 +630,54 @@
             indicator.style.animation = 'none';
             indicator.style.left = leftStr;
 
-            document.getElementById('btn-shoot').style.display = 'none';
-            document.getElementById('btn-battle-init').style.display = 'inline-block';
+            document.getElementById('btn-game-main').disabled = true;
 
-            const battleLog = document.getElementById('battle-log');
-            battleLog.innerText = "ゴゴゴゴ… ほのおのシュートをはなった！！";
-
-            // ★1.2秒後にスタジアム風ド派手ポップアップを出す
+            // 1.0秒後に大興奮のスタジアムゴールポップアップが出現！
             setTimeout(() => {
                 const overlay = document.getElementById('result-overlay');
                 const announcement = document.getElementById('result-announcement');
                 const subText = document.getElementById('result-sub-text');
                 
-                // ポップアップを画面いっぱいに表示
                 overlay.style.display = 'flex';
                 
                 if (currentPercent >= 68 && currentPercent <= 87) {
-                    // 【大成功：ウルトラゴール】
                     const prize = 50 + (playerData.kick * 2) + playerData.technique;
                     playerData.money += prize;
-                    
                     announcement.innerHTML = "⚽️🔥 GOOOOOAL!!! 🔥⚽️";
-                    announcement.style.color = "#ffeb3b"; // 金色
-                    // ポップイン＋激しい点滅フラッシュアニメーションを適用
+                    announcement.style.color = "#ffeb3b";
                     announcement.style.animation = "popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) both, goalFlash 0.3s infinite alternate";
-                    
-                    subText.innerHTML = `
-                        🎉 <strong>ジャストミート！さいきょうのシュート！！</strong><br>
-                        ものすごいスピードであいてのキーパーをふっとばしてゴールネットを突き破ったぞ！<br><br>
-                        💰 <strong>${prize}えん</strong> ゲット！
-                    `;
-                    battleLog.innerHTML = `🎉 さいきょうシュートでゴール！`;
+                    subText.innerHTML = `🎉 <strong>3連コンボからの、サイキョウほのおシュート！！</strong><br>あいてのキーパーもろとも、ゴールネットをぶちやぶったぞ！！<br><br>💰 <strong>${prize}えん</strong> ゲット！`;
                 } else {
                     const winChance = playerData.level + playerData.speed;
                     if (Math.random() * winChance > 8) {
-                        // 【成功：スピードねじ込みゴール】
                         playerData.money += 20;
-                        
                         announcement.innerHTML = "⚽️ GOAL!!! 🏃‍♂️💨";
-                        announcement.style.color = "#00e5ff"; // スピードの青色
+                        announcement.style.color = "#00e5ff";
                         announcement.style.animation = "popIn 0.4s both";
-                        
-                        subText.innerHTML = `
-                            ◯ <strong>ナイスゴール！</strong><br>
-                            タイミングは少しズレたけど、${playerData.name}選手の圧倒的なスピードであいてのディフェンダーをぬきさって決めたぞ！<br><br>
-                            💰 <strong>20えん</strong> ゲット！
-                        `;
-                        battleLog.innerHTML = `◯ スピードでねじこんだゴール！`;
+                        subText.innerHTML = `◯ <strong>ナイスゴール！</strong><br>タイミングはズレたけど、${playerData.name}選手の圧倒的なスピードでキーパーの手をハジきとばして決めたぞ！<br><br>💰 <strong>20えん</strong> ゲット！`;
                     } else {
-                        // 【失敗：キーパーセーブ】
                         announcement.innerHTML = "🧤 SAVED... 😢";
-                        announcement.style.color = "#b0bec5"; // グレー
+                        announcement.style.color = "#b0bec5";
                         announcement.style.animation = "popIn 0.4s both";
-                        
-                        subText.innerHTML = `
-                            あいてのキーパーにがっちりとめられてしまった…！<br>
-                            くやしい！もっとれんしゅうして、ステータスを上げてつぎは絶対にきめよう！
-                        `;
-                        battleLog.innerHTML = `😢 キーパーにとめられた…`;
+                        subText.innerHTML = `あいてのキーパーのスーパーセーブにとめられた…！<br>くやしい！もっとれんしゅうして、AIかんとくにステータスを上げてもらおう！`;
                     }
                 }
-                
-                gaugeBox.style.opacity = '0.4';
                 saveGame();
-            }, 1200);
+            }, 1000);
         }
 
-        // ポップアップを閉じる関数
         function closeResultOverlay() {
             document.getElementById('result-overlay').style.display = 'none';
+            // 試合エリアを最初の「しあいはじめる！」ボタン状態へリセット
+            document.getElementById('game-mechanic-zone').innerHTML = "";
+            document.getElementById('battle-buttons-area').innerHTML = `<button id="btn-game-main" onclick="startMatchCombo()" style="background-color: #d32f2f; box-shadow: 0 4px 0 #b71c1c; width: 85%;">しあいはじめる！</button>`;
+            document.getElementById('battle-log').innerText = "コンボを繋げて次のゴールをめざそう！";
+            resetDataStadiumStyle();
+        }
+
+        function resetDataStadiumStyle() {
+            resetStadiumElements();
+            updateUI();
         }
 
         function resetData() {
