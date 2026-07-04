@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>サッカーせいちょうRPG - スプリント1（UIリニューアル版）</title>
+    <title>サッカーせいちょうRPG - スプリント1（レイアウト最適化版）</title>
     <style>
         body {
             font-family: 'Helvetica Neue', Arial, sans-serif;
@@ -20,6 +20,21 @@
             margin-bottom: 10px;
         }
 
+        /* ★新設：カード外の上部ヘッダーエリア */
+        .card-outside-header {
+            max-width: 400px;
+            margin: 0 auto 10px auto;
+            text-align: center;
+        }
+
+        .name-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-top: 5px;
+        }
+
         .card {
             background: rgba(255, 255, 255, 0.1);
             padding: 20px;
@@ -32,28 +47,28 @@
             overflow: hidden;
         }
 
-        /* ★【ここが新しい！】トレーディングカード風の縦長ステータスカード */
+        /* トレーディングカード風の縦長ステータスカード */
         .status-card {
-            min-height: 480px; /* 縦長にして画像を大きく見せる */
+            height: 480px; /* 高さを固定 */
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
+            justify-content: flex-end; /* ★中身（ステータス）を一番下に沈める */
             align-items: center;
             padding: 15px;
         }
 
-        /* ★背景画像をカード全体に引き伸ばして敷き詰めるロジック（絶対配置） */
+        /* 背景画像をカード全体に引き伸ばして敷き詰める（絶対配置） */
         .card-background-img {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            object-fit: cover; /* 縦横比を維持してカード全体を覆う */
-            z-index: 1; /* 一番後ろに配置 */
+            object-fit: cover;
+            z-index: 1;
         }
 
-        /* ★画像の上に重ねる文字やボタンのコンテナ（画像より前に出す） */
+        /* 画像の上に重ねる文字コンテナ */
         .card-content {
             position: relative;
             z-index: 2; /* 画像より前に配置 */
@@ -63,37 +78,35 @@
             align-items: center;
         }
 
-        /* ★【画像に影響がない場所へ背景色ありで表示】ガラス風の半透明ダークボックス */
+        /* ガラス風の半透明ダークボックス */
         .glass-box {
-            background: rgba(13, 27, 42, 0.75); /* 半透明の濃い紺色 */
-            backdrop-filter: blur(4px); /* 背景を少しぼかして文字をクッキリさせるマほう */
-            -webkit-backdrop-filter: blur(4px);
-            padding: 12px 20px;
+            background: rgba(13, 27, 42, 0.8); /* 視認性向上のため少し濃く */
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            padding: 15px 20px;
             border-radius: 12px;
             width: 85%;
             box-shadow: 0 4px 10px rgba(0,0,0,0.4);
             border: 1px solid rgba(255,255,255,0.1);
-            margin: 5px 0;
+            margin-bottom: 5px;
         }
 
-        /* 画像がないときに中央で優雅に跳ねる絵文字エリア */
+        /* 画像がないときだけ中央で跳ねる絵文字エリア */
         .character-emoji-area {
             font-size: 80px;
-            margin: 40px 0;
+            margin-bottom: 120px; /* 中央付近に位置調整 */
             animation: bounce 2s infinite ease-in-out;
         }
 
         .stage-badge {
             background-color: #00e5ff;
             color: #0d1b2a;
-            padding: 4px 14px;
+            padding: 5px 16px;
             border-radius: 20px;
             font-size: 14px;
             font-weight: bold;
             display: inline-block;
-            margin-bottom: 8px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-            text-shadow: none;
         }
 
         button {
@@ -176,38 +189,33 @@
 
     <h1>⚽️ サッカーせいちょうRPG ⚽️</h1>
 
+    <div class="card-outside-header">
+        <div class="stage-badge" id="txt-stage">Jリーグへん</div>
+        <div class="name-container">
+            <h2 style="margin: 0; font-size: 22px; text-shadow: 1px 1px 3px rgba(0,0,0,0.8);">なまえ：<span id="txt-name" style="color: #00e5ff;">？？？</span> 選手</h2>
+            <button onclick="changeName()" style="background-color: #78909c; box-shadow: 0 4px 0 #455a64; padding: 6px 14px; font-size: 12px; margin: 0;">なまえをかえる</button>
+        </div>
+    </div>
+
     <div class="card status-card" id="status-card-element">
         
         <div id="bg-img-container"></div>
 
-        <div class="card-content">
-            <div class="stage-badge" id="txt-stage">Jリーグへん</div>
-            
-            <div class="glass-box" style="margin-top: 5px;">
-                <h2 style="margin: 0; font-size: 20px;">なまえ：<span id="txt-name" style="color: #00e5ff;">？？？</span> 選手</h2>
-            </div>
-        </div>
-
-        <div class="card-content" id="fallback-emoji-container" style="display: none;">
+        <div class="card-content" id="fallback-emoji-container" style="display: none; height: 100%; justify-content: center;">
             <div class="character-emoji-area" id="txt-fallback-emoji">👦</div>
         </div>
 
-        <div class="card-content">
+        <div class="card-content" style="margin-top: auto;">
             <div class="glass-box">
-                <p style="font-size: 15px; font-weight: bold; line-height: 1.5; margin: 0; text-align: left; padding-left: 10px;">
+                <p style="font-size: 15px; font-weight: bold; line-height: 1.6; margin: 0; text-align: left; padding-left: 10px;">
                     レベル: <span id="txt-level" style="color: #ffeb3b; font-size: 20px;">1</span><br>
                     ⚽️ キック: <span id="txt-kick">10</span><br>
                     ⚡️ スピード: <span id="txt-speed">10</span><br>
                     🪄 テクニック: <span id="txt-technique">10</span><br>
-                    ❤️ スタミナ: <span id="txt-stamina">10</span>
+                    ❤️ スタミナ: <span id="txt-stamina">10</span><br>
+                    <span style="color: #ffeb3b;">💰 もってるおかね: <span id="txt-money">0</span> 円</span>
                 </p>
             </div>
-
-            <div class="glass-box" style="padding: 6px 12px; width: auto; margin-top: 8px;">
-                <p style="font-size: 13px; color: #ffeb3b; margin: 0; font-weight: bold;">もってるおかね: <span id="txt-money">0</span> 円</p>
-            </div>
-            
-            <button onclick="changeName()" style="background-color: #78909c; box-shadow: 0 4px 0 #455a64; padding: 5px 12px; font-size: 11px; margin-top: 8px;">なまえをかえる</button>
         </div>
     </div>
 
@@ -270,7 +278,6 @@
             }
         }
 
-        // ★UI更新（カードの背景画像化とフォールバック処理）
         function updateUI() {
             document.getElementById('txt-name').innerText = playerData.name;
             document.getElementById('txt-level').innerText = playerData.level;
@@ -288,7 +295,6 @@
             let imageSrc = "";
             let emojiText = "";
 
-            // ステージ判定
             if (playerData.level >= 20) {
                 stageBadge.innerText = "🏆 せかいチャンピオン！";
                 stageBadge.style.backgroundColor = "#ffd700";
@@ -306,11 +312,9 @@
                 emojiText = "👦";
             }
 
-            // ★背景画像としての埋め込みと、エラー時の自動絵文字切り替え（フォールバック）
             fallbackEmoji.innerText = emojiText;
-            fallbackContainer.style.display = 'none'; // 一旦隠す
+            fallbackContainer.style.display = 'none';
 
-            // <img>タグを背景として挿入し、読み込み失敗(onerror)したら絵文字を出す
             bgImgContainer.innerHTML = `<img src="${imageSrc}" class="card-background-img" onload="document.getElementById('fallback-emoji-container').style.display='none';" onerror="this.style.display='none'; document.getElementById('fallback-emoji-container').style.display='block';">`;
         }
 
