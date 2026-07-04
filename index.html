@@ -125,12 +125,12 @@
         
         <p style="font-size: 16px; font-weight: bold; line-height: 1.6;">
             レベル: <span id="txt-level" style="color: #ffeb3b; font-size: 22px;">1</span><br>
-            ⚽️ キック: <span id="txt-kick">10</span> | 
+            ⚽️ キック: <span id="txt-kick">10</span><br>
             ⚡️ スピード: <span id="txt-speed">10</span><br>
-            🪄 テクニック: <span id="txt-technique">10</span> | 
+            🪄 テクニック: <span id="txt-technique">10</span><br>
             ❤️ スタミナ: <span id="txt-stamina">10</span>
         </p>
-        <p style="font-size: 14px; color: #ffeb3b;">もってるおかね: <span id="txt-money">0</span> えん</p>
+        <p style="font-size: 14px; color: #ffeb3b;">もってるおかね: <span id="txt-money">0</span> 円</p>
         <button onclick="changeName()" style="background-color: #78909c; box-shadow: 0 4px 0 #455a64; padding: 6px 12px; font-size: 12px;">なまえをかえる</button>
     </div>
 
@@ -142,7 +142,7 @@
 
     <div class="card">
         <h3>VS 最初のライバルチーム</h3>
-        <button id="btn-battle-init" onclick="readyBattle()" style="background-color: #d32f2f; box-shadow: 0 4px 0 #b71c1c;">しあいはじめる！</button>
+        <button id="btn-battle-init" onclick="readyBattle()" style="background-color: #d32f2f; box-shadow: 0 4px 0 #b71c1c;">しあいをはじめる！</button>
         
         <div class="gauge-container" id="gauge-box">
             <div class="sweet-spot"></div>
@@ -186,9 +186,9 @@
 
         // 名前を入力してもらう関数
         function askName() {
-            let inputName = prompt("きみの なまえを おしえてね！", "ひろき");
+            let inputName = prompt("きみの なまえを おしえてね！", "あすき");
             if (inputName === null || inputName.trim() === "") {
-                playerData.name = "ひろき"; // キャンセルされた場合のデフォルト名
+                playerData.name = "あすき"; // キャンセルされた場合のデフォルト名
             } else {
                 playerData.name = inputName;
             }
