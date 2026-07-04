@@ -221,22 +221,26 @@
             updateUI();
         }
 
-        // --- 2. 音声認識（Web Speech API）とAI監督 ---
+       // --- 2. 音声認識（Web Speech API）とAI監督 ---
         function startSpeech() {
             const voiceBtn = document.getElementById('btn-voice');
             const voiceLog = document.getElementById('voice-log');
 
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRecognition) {
-                voiceLog.innerText = "エラー: このスマホ・ブラウザはマイクに対応していません。";
+                voiceLog.innerText = "エラー: このスマホ・ブラウザはマイクに対応していません。iPhoneならSafari、AndroidならChromeで開いてね。";
                 return;
             }
 
             const recognition = new SpeechRecognition();
             recognition.lang = 'ja-JP';
+            
+            // 【追加】モバイルでの認識率向上・タイムアウト対策のオプション
+            recognition.interimResults = false; // 途中の経過は無視して、話し終わりの確定結果だけをとる
+            recognition.maxAlternatives = 1;    // 候補は1つだけでOK
 
             voiceBtn.innerText = "👂 きいているよ...";
-            voiceLog.innerText = "スマホにむかって、がんばったことを話してね！";
+            voiceLog.innerText = "ボタンをおしたら、すぐにスマホにむかって声を出してね！";
 
             recognition.start();
 
@@ -247,7 +251,6 @@
                 setTimeout(() => {
                     let statusUpText = "";
                     
-                    // 4つのステータスに対応したキーワード判定ロジック
                     if (text.includes("シュート") || text.includes("点") || text.includes("キック")) {
                         playerData.kick += 3;
                         statusUpText = "⚽️ キックが 3 アップ！";
@@ -261,7 +264,6 @@
                         playerData.stamina += 3;
                         statusUpText = "❤️ スタミナが 3 アップ！";
                     } else {
-                        // 特定のキーワードがない場合でも、全能力が上がるやさしい世界
                         playerData.kick += 1;
                         playerData.speed += 1;
                         playerData.technique += 1;
@@ -276,9 +278,20 @@
                 }, 1500);
             };
 
-            recognition.onerror = function() {
+            // 【強化】何のエラーで止まったかを画面に詳細に出力する
+            recognition.onerror = function(event) {
                 voiceBtn.innerText = "🎙 れんしゅうを声でほうこく！";
-                voiceLog.innerText = "うまくききとれなかったよ。もう一度ボタンをおしてね。";
+                
+                let errorMsg = event.error;
+                if (event.error === 'not-allowed') {
+                    errorMsg = "❌ マイクの許可（きょか）がされていません。ブラウザの設定でマイクをONにしてね。";
+                } else if (event.error === 'no-speech') {
+                    errorMsg = "❌ 声が聞こえなかったよ。ボタンをおしたら、すぐに大きな声でしゃべってみてね！";
+                } else if (event.error === 'network') {
+                    errorMsg = "❌ ネットの接続（せつぞく）エラーです。";
+                }
+                
+                voiceLog.innerHTML = `<span style="color: #ff1744; font-weight: bold;">${errorMsg}</span> (error-code: ${event.error})`;
             };
         }
 
