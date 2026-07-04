@@ -2,8 +2,8 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>サッカーせいちょうRPG - スプリント1（3連コンボ・試合演出版）</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>サッカーせいちょうRPG - スプリント1（完全デバッグ版）</title>
     <style>
         body {
             font-family: 'Helvetica Neue', Arial, sans-serif;
@@ -103,6 +103,7 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.3);
         }
 
+        /* ★すべてのボタンにダブルタップズーム防止を追加 */
         button {
             background-color: #ff9800;
             border: none;
@@ -115,6 +116,7 @@
             box-shadow: 0 4px 0 #e65100;
             transition: 0.1s;
             margin: 5px;
+            touch-action: manipulation; /* ★これiPhoneの拡大バグを1発でなおす魔法 */
         }
 
         button:disabled {
@@ -128,14 +130,14 @@
             box-shadow: none;
         }
 
-        /* ＝★＝ 【新設】動的試合アニメーションスタジアムのCSS ＝★＝ */
+        /* 試合スタジアム */
         .mini-stadium {
             width: 90%;
-            height: 110px;
+            height: 120px;
             background: linear-gradient(#2e7d32 80%, #1b5e20 100%);
             border: 2px solid #fff;
             border-radius: 10px;
-            margin: 10px auto;
+            margin: 5px auto 10px auto;
             position: relative;
             overflow: hidden;
             box-shadow: inset 0 0 20px rgba(0,0,0,0.4);
@@ -147,10 +149,48 @@
             left: 50%;
             width: 2px;
             height: 100%;
-            background: rgba(255,255,255,0.4);
+            background: rgba(255,255,255,0.3);
         }
 
-        /* 試合中うごくプレイヤーキャラの枠 */
+        /* ★新設：ジャンプの「タイミング合わせ用」の目印の赤いライン */
+        .jump-line-marker {
+            position: absolute;
+            top: 0;
+            left: 28%; /* 敵がここに来た瞬間に押す！ */
+            width: 4px;
+            height: 100%;
+            background-color: #ff1744;
+            box-shadow: 0 0 8px #ff1744;
+            display: none; /* ジャンプフェーズ以外は隠す */
+            z-index: 5;
+        }
+
+        /* リアルタイム・スタミナ枠（スタミナの可視化） */
+        .stamina-header {
+            font-size: 12px;
+            font-weight: bold;
+            text-align: left;
+            width: 80%;
+            margin: 5px auto 2px auto;
+            display: flex;
+            justify-content: space-between;
+        }
+        .stamina-container-ui {
+            width: 80%;
+            height: 12px;
+            background-color: #333;
+            border-radius: 6px;
+            margin: 0 auto 10px auto;
+            border: 1px solid #fff;
+            overflow: hidden;
+        }
+        .stamina-bar-ui {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to right, #4caf50, #8bc34a);
+            transition: width 0.2s ease-out;
+        }
+
         .match-avatar {
             position: absolute;
             bottom: 15px;
@@ -163,19 +203,18 @@
         }
         .match-avatar img { width: 100%; height: 100%; object-fit: contain; }
 
-        /* 迫りくるディフェンダー（敵）の枠 */
+        /* 敵：初期位置は画面の右外（right: -60px） */
         .match-enemy {
             position: absolute;
             bottom: 15px;
-            right: -60px;
+            left: 110%; /* 右外からスタート */
             width: 50px;
             height: 50px;
             font-size: 40px;
             z-index: 9;
-            transition: right 0.3s ease-in-out, transform 0.2s;
+            transition: left 0.05s linear, transform 0.2s; /* 滑らかに滑り込んでくる設定 */
         }
 
-        /* 連打ゲージ・シュートゲージの共通デザイン */
         .gauge-container {
             width: 80%;
             height: 20px;
@@ -203,12 +242,11 @@
             left: 0;
         }
 
-        /* 連打のプログレスバー */
         .mash-bar {
             height: 100%;
             width: 0%;
             background: linear-gradient(to right, #ffeb3b, #ff9800);
-            transition: width 0.1s ease-out;
+            transition: width 0.05s linear;
         }
 
         .log-box {
@@ -231,7 +269,6 @@
             background: rgba(255,235,59,0.05);
         }
 
-        /* 大興奮のゴールポップアップ */
         #result-overlay {
             display: none;
             position: fixed;
@@ -265,7 +302,6 @@
             line-height: 1.6;
         }
 
-        /* 激しいアニメーション達 */
         @keyframes popIn {
             0% { transform: scale(0.4); opacity: 0; }
             100% { transform: scale(1); opacity: 1; }
@@ -278,9 +314,9 @@
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-10px); }
         }
-        @keyframes slideAttack {
-            0% { transform: translateX(0) translateY(0); }
-            100% { transform: translateX(-30px) translateY(10px) rotate(-20deg); }
+        @keyframes moveBar {
+            0% { left: 0%; }
+            100% { left: 96%; }
         }
     </style>
 </head>
@@ -328,14 +364,31 @@
     <div class="card">
         <h3>VS ライバルチーム（3れんコンボ！）</h3>
         
+        <div class="stamina-header">
+            <span>しあいちゅうのスタミナ</span>
+            <span id="txt-match-stamina-val">10/10</span>
+        </div>
+        <div class="stamina-container-ui">
+            <div class="stamina-bar-ui" id="ui-stamina-bar"></div>
+        </div>
+
         <div class="mini-stadium">
             <div class="stadium-line"></div>
-            <div class="match-avatar" id="stadium-player">👦</div>
+            <div class="jump-line-marker" id="ui-jump-marker"></div> <div class="match-avatar" id="stadium-player">👦</div>
             <div class="match-enemy" id="stadium-enemy">🏃‍♂️</div>
         </div>
 
         <div id="game-mechanic-zone" style="min-height: 40px; margin: 5px 0;">
+            <div id="ui-box-dribble" style="display: none;">
+                <div class="gauge-container"><div class="mash-bar" id="dribble-mash-bar"></div></div>
             </div>
+            <div id="ui-box-jump" style="display: none;">
+                <div style="font-size:18px; font-weight:bold; color:#ffeb3b; height:24px;" id="jump-signal-text">あいてが走ってきた！タイミングをあわせろ！</div>
+            </div>
+            <div id="ui-box-shoot" style="display: none;">
+                <div class="gauge-container" id="final-gauge-box"><div class="sweet-spot"></div><div class="gauge-bar" id="final-indicator"></div></div>
+            </div>
+        </div>
 
         <div id="battle-buttons-area">
             <button id="btn-game-main" onclick="startMatchCombo()" style="background-color: #d32f2f; box-shadow: 0 4px 0 #b71c1c; width: 85%;">しあいはじめる！</button>
@@ -346,9 +399,7 @@
 
     <div id="result-overlay">
         <div id="result-announcement">GOAL!!</div>
-        <div id="result-sub-box">
-            <p id="result-sub-text" style="margin: 0;"></p>
-        </div>
+        <div id="result-sub-box"><p id="result-sub-text" style="margin: 0;"></p></div>
         <button onclick="closeResultOverlay()" style="margin-top: 35px; font-size: 20px; padding: 14px 35px; background-color: #4caf50; box-shadow: 0 4px 0 #388e3c;">つぎの試合へ！</button>
     </div>
 
@@ -357,7 +408,7 @@
     <script>
         // --- 1. グローバル変数とセーブデータの定義 ---
         let playerData = { name: "", level: 1, kick: 10, speed: 10, technique: 10, stamina: 10, money: 0 };
-        let imageSrcGlobal = "avatar_j.png"; // 現在のステージ画像を保持
+        let imageSrcGlobal = "avatar_j.png";
 
         window.onload = function() {
             const savedData = localStorage.getItem('soccer_rpg_save');
@@ -407,7 +458,6 @@
             fallbackEmoji.innerText = emojiText;
             fallbackContainer.style.display = 'none';
 
-            // スタジアム内のアバターも画像（無ければ絵文字）に連動
             const htmlWithImage = `<img src="${imageSrcGlobal}" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
                                    <span style="display:none;">${emojiText}</span>`;
             stPlayer.innerHTML = htmlWithImage;
@@ -424,7 +474,7 @@
             const voiceBtn = document.getElementById('btn-voice'); const voiceLog = document.getElementById('voice-log');
             if (isListening && recognition) { isWaitingConfirm = true; recognition.stop(); voiceBtn.style.display = "none"; voiceLog.innerText = "⏳ いま話した言葉をあつめています..."; return; }
             if (!recognition) {
-                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                const SpeechRecognition = window.WindowsSpeechRecognition || window.SpeechRecognition || window.webkitSpeechRecognition;
                 if (!SpeechRecognition) { voiceLog.innerText = "エラー: マイク非対応"; return; }
                 recognition = new SpeechRecognition(); recognition.lang = 'ja-JP'; recognition.interimResults = true; recognition.maxAlternatives = 1; recognition.continuous = true; 
                 recognition.onstart = function() { isListening = true; isWaitingConfirm = false; latestTranscript = ""; voiceBtn.innerText = "🛑 話しおわったらここをおす！"; voiceBtn.style.backgroundColor = "#d32f2f"; voiceBtn.style.boxShadow = "0 4px 0 #b71c1c"; voiceLog.innerText = "スマホにむかってゆっくり話してね！"; };
@@ -452,169 +502,208 @@
             }, 1500);
         }
 
-        // --- 3. ＝★＝ 3連コンボ試合システム（ステートマシン） ＝★＝ ---
-        let currentMatchStamina = 10; // 今回の試合の残りスタミナ
-        let mashCount = 0;           // 連打数カウンター
-        let mashTimer = null;
-        let jumpReactionTimer = null;
-        let jumpTriggerTime = 0;
-        let finalShootPercent = 0;
+        // --- 3. ＝★＝ 新・3連コンボ試合システム ＝★＝ ---
+        let currentMatchStamina = 10;
+        let maxMatchStamina = 10;
+        let mashProgress = 0; // ドリブル連打の現在のパーセント（0〜100）
+        let gameLoopInterval = null;
+        let matchPhase = ""; // "dribble", "jump", "shoot"
+        let enemyPositionLeft = 110; // 敵のX座標(%)
+        let enemySpeed = 1.5; // 敵が迫ってくる速度
+        let hasJumped = false;
+
+        // スタミナの見た目を更新するUI関数
+        function updateStaminaUI() {
+            document.getElementById('txt-match-stamina-val').innerText = `${currentMatchStamina}/${maxMatchStamina}`;
+            const bar = document.getElementById('ui-stamina-bar');
+            const percent = (currentMatchStamina / maxMatchStamina) * 100;
+            bar.style.width = percent + "%";
+            
+            // 残量に合わせてスタミナバーの色を変化させる
+            if (percent > 50) { bar.style.background = 'linear-gradient(to right, #4caf50, #8bc34a)'; }
+            else if (percent > 25) { bar.style.background = 'linear-gradient(to right, #ff9800, #ffc107)'; }
+            else { bar.style.background = 'linear-gradient(to right, #f44336, #ff5722)'; }
+        }
 
         function resetStadiumElements() {
             const player = document.getElementById('stadium-player');
             const enemy = document.getElementById('stadium-enemy');
             player.style.left = "10%"; player.style.bottom = "15px";
-            enemy.style.right = "-60px"; enemy.style.animation = "none";
+            enemy.style.left = "110%"; enemy.style.transform = "none";
             enemy.innerText = "🏃‍♂️";
+            document.getElementById('ui-jump-marker').style.display = 'none';
+            
+            // 全UIメカニックスを一旦隠す
+            document.getElementById('ui-box-dribble').style.display = 'none';
+            document.getElementById('ui-box-jump').style.display = 'none';
+            document.getElementById('ui-box-shoot').style.display = 'none';
         }
 
-        // しあいはじめる！が押された
+        // 試合をはじめる！
         function startMatchCombo() {
-            currentMatchStamina = playerData.stamina; // プレイヤーの現在スタミナをコピー
+            maxMatchStamina = playerData.stamina;
+            currentMatchStamina = playerData.stamina;
+            updateStaminaUI();
             resetStadiumElements();
             initDribblePhase();
         }
 
-        // ── フェーズ1：ボタン連打でドリブル ──
+        // ── フェーズ1：ボタン連打でドリブル（じわじわ減る連打システム） ──
         function initDribblePhase() {
-            mashCount = 0;
-            const zone = document.getElementById('game-mechanic-zone');
-            const btnZone = document.getElementById('battle-buttons-area');
-            const log = document.getElementById('battle-log');
+            matchPhase = "dribble";
+            mashProgress = 0;
+            
+            document.getElementById('ui-box-dribble').style.display = 'block';
+            document.getElementById('battle-log').innerText = "【フェーズ1】ボタンを連打（れんだ）しろ！おそいとスタミナがへるぞ！";
+            document.getElementById('battle-buttons-area').innerHTML = `<button id="btn-game-main" onclick="executeMash()" style="background-color: #29b6f6; box-shadow: 0 4px 0 #0288d1; width:85%; font-size:18px;">🔥 ダッシュ連打！！！</button>`;
 
-            log.innerText = "【フェーズ1】ボタンをれんだして、あいてをぬきされ！！";
-            zone.innerHTML = `<div class="gauge-container"><div class="mash-bar" id="dribble-mash-bar"></div></div>`;
-            btnZone.innerHTML = `<button id="btn-game-main" onclick="executeMash()" style="background-color: #29b6f6; box-shadow: 0 4px 0 #0288d1; width:85%; font-size:18px;">🔥 ダッシュれんだ！！！</button>`;
+            let timeLeft = 3.5; // 3.5秒間の連打勝負
+            gameLoopInterval = setInterval(() => {
+                timeLeft -= 0.05;
+                
+                // ★速度の正解を教えるギミック：放置すると秒速でゲージが減る！
+                // スピードが高いほど、ゲージの減少速度がマイルドになり有利になる設計
+                const decay = Math.max(0.4, 1.2 - (playerData.speed / 30));
+                mashProgress = Math.max(0, mashProgress - decay);
+                document.getElementById('dribble-mash-bar').style.width = mashProgress + "%";
+                
+                // あすき選手も進捗に合わせて進む
+                document.getElementById('stadium-player').style.left = (10 + (mashProgress * 0.4)) + "%";
 
-            let timeLeft = 3.0;
-            mashTimer = setInterval(() => {
-                timeLeft -= 0.1;
                 if (timeLeft <= 0) {
-                    clearInterval(mashTimer);
+                    clearInterval(gameLoopInterval);
                     endDribblePhase();
                 }
-            }, 100);
+            }, 50);
         }
 
         function executeMash() {
-            mashCount++;
-            const player = document.getElementById('stadium-player');
-            const targetMash = 14 + (playerData.speed / 5); // スピードが高いと目標値が有利に
-            const percent = Math.min((mashCount / targetMash) * 100, 100);
-            
-            document.getElementById('dribble-mash-bar').style.width = percent + "%";
-            // 連打に合わせてあすき選手が右に進む動的スライド演出！
-            player.style.left = (10 + (percent * 0.4)) + "%";
+            // 1タップごとにゲージが大幅プラス
+            mashProgress = Math.min(100, mashProgress + 7);
+            document.getElementById('dribble-mash-bar').style.width = mashProgress + "%";
         }
 
         function endDribblePhase() {
             const log = document.getElementById('battle-log');
-            const isSuccess = mashCount >= 15; // 15回連打で成功
+            // 時間終了時にゲージが75%以上なら合格！
+            const isSuccess = mashProgress >= 75;
 
             if (isSuccess) {
-                log.innerHTML = `<span style="color:#4caf50; font-weight:bold;">✨ ドリブル大せいこう！</span> あいてをぬきさったぞ！`;
+                log.innerHTML = `<span style="color:#4caf50; font-weight:bold;">✨ ドリブル大せいこう！</span> あいてをぶっちぎった！`;
             } else {
-                currentMatchStamina = Math.max(1, currentMatchStamina - 3); // 失敗でスタミナ減少
-                log.innerHTML = `<span style="color:#f44336; font-weight:bold;">😢 つかまった！</span> 体力をうばわれた（スタミナ-3）`;
+                currentMatchStamina = Math.max(1, currentMatchStamina - 3);
+                updateStaminaUI();
+                log.innerHTML = `<span style="color:#f44336; font-weight:bold;">😢 つかまった！</span> はげしいプレスでスタミナがへった！(-3)`;
             }
 
-            // 1.5秒後に自動でジャンプフェーズへスライド
-            setTimeout(() => { initJumpPhase(); }, 1500);
+            setTimeout(() => {
+                document.getElementById('ui-box-dribble').style.display = 'none';
+                initJumpPhase();
+            }, 1500);
         }
 
-        // ── フェーズ2：スライディングをジャンプでよける（反射神経テスト） ──
+        // ── フェーズ2：相手が走ってくるタイミングジャンプ（物理スライディング） ──
         function initJumpPhase() {
-            const zone = document.getElementById('game-mechanic-zone');
-            const btnZone = document.getElementById('battle-buttons-area');
-            const log = document.getElementById('battle-log');
+            matchPhase = "jump";
+            hasJumped = false;
+            enemyPositionLeft = 110;
+            
+            // テクニックとレベルが高いほど、敵のスライディングが少し遅くなり見切りやすくなる
+            enemySpeed = Math.max(1.2, 3.2 - (playerData.technique / 15) - (playerData.level / 20));
+
+            document.getElementById('ui-box-jump').style.display = 'block';
+            document.getElementById('ui-jump-marker').style.display = 'block'; // 赤い目印線を出す
+            document.getElementById('battle-log').innerText = "【フェーズ2】あいてが突っ込んできた！赤い線をこえる瞬間にジャンプ！";
+            document.getElementById('battle-buttons-area').innerHTML = `<button id="btn-game-main" onclick="executeJump()" style="background-color: #ff9800; box-shadow: 0 4px 0 #e65100; width:85%; font-size:18px;">🪄 タイミングよくジャンプ！</button>`;
+
             const enemy = document.getElementById('stadium-enemy');
-
-            log.innerText = "【フェーズ2】あいてのスライディングがくるぞ… まて…";
-            zone.innerHTML = `<div style="font-size:18px; font-weight:bold; color:#ffeb3b; height:20px;" id="jump-signal-text">まだおしちゃダメ…</div>`;
-            // アクションボタンは最初無効化（disabled）にしておく
-            btnZone.innerHTML = `<button id="btn-game-main" onclick="executeJump()" disabled style="background-color: #e0e0e0; box-shadow: 0 4px 0 #9e9e9e; width:85%;">🪄 ジャンプ！！！</button>`;
-
-            // 敵（スライディングマン）が画面外からスタンバイ位置へスライドイン
             enemy.innerText = "🏃‍♂️💨";
-            enemy.style.right = "15%";
+            enemy.style.left = enemyPositionLeft + "%";
 
-            // 1.2秒〜2.5秒のランダムなタイミングで「ジャンプシグナル」を発火
-            const randomDelay = 1200 + Math.random() * 1300;
-            jumpReactionTimer = setTimeout(() => {
-                const btn = document.getElementById('btn-game-main');
-                const signal = document.getElementById('jump-signal-text');
-                
-                signal.innerHTML = `<span style="color:#ff1744; font-size:20px; animation:bounce 0.2s infinite;">⚠️ あぶない！いま、よけろ！！！</span>`;
-                btn.disabled = false;
-                btn.style.backgroundColor = "#ff9800";
-                btn.style.boxShadow = "0 4px 0 #e65100";
-                
-                // シグナルが出た時刻をミリ秒で記録
-                jumpTriggerTime = Date.now();
-                
-                // 0.55秒（550ms）以内に押せないと強制失敗のタイマー
-                jumpReactionTimer = setTimeout(() => { endJumpPhase(false); }, 550);
-            }, randomDelay);
+            // 物理的な座標移動をループ処理でシミュレート
+            gameLoopInterval = setInterval(() => {
+                enemyPositionLeft -= enemySpeed;
+                enemy.style.left = enemyPositionLeft + "%";
+
+                // 敵が完全にあすき選手を通り過ぎたらフェーズ終了
+                if (enemyPositionLeft <= -10) {
+                    clearInterval(gameLoopInterval);
+                    endJumpPhase();
+                }
+            }, 30);
         }
 
         function executeJump() {
-            clearTimeout(jumpReactionTimer); // 強制失敗タイマーを解除
-            const reactionTime = Date.now() - jumpTriggerTime;
-            // 技量（テクニック）が高いと、猶予が少し有利になる判定
-            const successLimit = 420 + (playerData.technique * 3);
+            if(hasJumped) return; // 1回しか跳べない仕様
+            hasJumped = true;
 
-            if (reactionTime <= successLimit) {
-                // ジャンプ大成功！あすき選手が上にビューンと跳ね上がるCSSアニメーション！
-                const player = document.getElementById('stadium-player');
-                player.style.bottom = "65px";
-                setTimeout(() => { player.style.bottom = "15px"; }, 350);
-                endJumpPhase(true);
+            const player = document.getElementById('stadium-player');
+            // あすき選手が上にビューンと跳ね上がる（0.35秒間空中に浮く）
+            player.style.bottom = "65px";
+            
+            // ★【ここが物理タイミングの核心】ジャンプした瞬間の、敵の「現在の位置」を判定！
+            // 赤い線が28%の位置にあるので、敵が 22% 〜 36% の間にいれば空中回避成功！
+            if (enemyPositionLeft >= 20 && enemyPositionLeft <= 38) {
+                // 回避成功フラグを一時退避
+                player.setAttribute('data-jump-success', 'true');
             } else {
-                endJumpPhase(false);
+                player.setAttribute('data-jump-success', 'false');
             }
+
+            setTimeout(() => { 
+                player.style.bottom = "15px"; // 着地
+            }, 350);
         }
 
-        function endJumpPhase(isSuccess) {
+        function endJumpPhase() {
             const log = document.getElementById('battle-log');
             const enemy = document.getElementById('stadium-enemy');
+            const player = document.getElementById('stadium-player');
             const btn = document.getElementById('btn-game-main');
             if(btn) btn.disabled = true;
 
-            if (isSuccess) {
-                log.innerHTML = `<span style="color:#4caf50; font-weight:bold;">✨ ナイスジャンプ！</span> スライディングをかんぺきにかわした！`;
-                enemy.style.right = "80%"; // 敵が空振りして左へスライド
+            const isSuccess = player.getAttribute('data-jump-success') === 'true';
+            player.removeAttribute('data-jump-success');
+
+            if (hasJumped && isSuccess) {
+                log.innerHTML = `<span style="color:#4caf50; font-weight:bold;">✨ かんぺきなジャンプ！</span> スライディングをきれいに飛びこえた！`;
+                enemy.style.left = "-20%";
             } else {
-                currentMatchStamina = Math.max(1, currentMatchStamina - 3); // 失敗でファールされてスタミナ減
-                enemy.style.transform = "scale(1.2)"; // 敵が激しくぶつかってくる
-                document.getElementById('stadium-player').style.left = "5%"; // ふっとばされる
-                log.innerHTML = `<span style="color:#f44336; font-weight:bold;">😢 ドカン！ファールされた！</span> はげしくたおされた（スタミナ-3）`;
+                currentMatchStamina = Math.max(1, currentMatchStamina - 3);
+                updateStaminaUI();
+                enemy.style.transform = "scale(1.3)";
+                player.style.left = "5%"; // 吹っ飛ぶ
+                log.innerHTML = `<span style="color:#f44336; font-weight:bold;">😢 ズドン！ファールスライディング！</span> もろに足をけられた…スタミナがへった！(-3)`;
             }
 
             setTimeout(() => {
                 enemy.style.transform = "none";
+                document.getElementById('ui-box-jump').style.display = 'none';
+                document.getElementById('ui-jump-marker').style.display = 'none';
                 initShootPhase();
             }, 1800);
         }
 
         // ── フェーズ3：最後のシュートゲージ（タイミング合わせ） ──
         function initShootPhase() {
-            const zone = document.getElementById('game-mechanic-zone');
-            const btnZone = document.getElementById('battle-buttons-area');
-            const log = document.getElementById('battle-log');
+            matchPhase = "shoot";
             const enemy = document.getElementById('stadium-enemy');
+            enemy.innerText = "🧤"; // 敵キーパー降臨
+            enemy.style.left = "85%";
 
-            enemy.innerText = "🧤"; // 敵がゴールキーパーに変身！
-            enemy.style.right = "5%";
+            // バグ対策：HTMLにあらかじめ書いてあるシュートゲージを展開
+            document.getElementById('ui-box-shoot').style.display = 'block';
+            document.getElementById('battle-log').innerText = "【ファイナル】ラストシュート！赤いゾーンをねらってボタンをおせ！";
+            document.getElementById('battle-buttons-area').innerHTML = `<button id="btn-game-main" onclick="executeShoot()" style="background-color: #29b6f6; box-shadow: 0 4px 0 #0288d1; width:85%; font-size:18px;">🔥 いま、シュート！！！</button>`;
 
-            log.innerText = "【ファイナル】ラストシュート！赤いゾーンをねらってボタンをおせ！";
-            // 常に上がゲージ、下がボタンの配置に完全固定
-            zone.innerHTML = `<div class="gauge-container" style="opacity:1;" id="final-gauge-box"><div class="sweet-spot"></div><div class="gauge-bar" id="final-indicator"></div></div>`;
-            btnZone.innerHTML = `<button id="btn-game-main" onclick="executeShoot()" style="background-color: #29b6f6; box-shadow: 0 4px 0 #0288d1; width:85%; font-size:18px;">🔥 いま、シュート！！！</button>`;
-
-            // ★スタミナ連動ロジック！ここまでのミスでスタミナが減っていると、ゲージ速度が超高速化！
+            // ★バグを完全粉砕するリフロー（再描画）ハック
             const indicator = document.getElementById('final-indicator');
-            // 通常スタミナ10で1.2秒。スタミナ3だと0.5秒になりウルトラ超高速！
-            const speedDuration = Math.max(0.4, (currentMatchStamina / 10) * 1.2); 
+            indicator.style.animation = 'none';
+            indicator.offsetHeight; // これを挟むことで、ブラウザに「今すぐ動かせ！」と強制します
+
+            // ★スタミナ連動！ここまでボロボロ（ミス多数）だと、ゲージ速度が超高速化！
+            // スタミナが満点(10)なら1.2秒で往復。スタミナ3なら0.45秒の超ハイスピード！
+            const speedDuration = Math.max(0.4, (currentMatchStamina / maxMatchStamina) * 1.2); 
             indicator.style.animation = `moveBar ${speedDuration}s infinite linear alternate`;
         }
 
@@ -628,11 +717,10 @@
             const currentPercent = (parseFloat(leftStr) / parentWidth) * 100;
 
             indicator.style.animation = 'none';
-            indicator.style.left = leftStr;
+            indicator.style.left = leftStr; // その場にストップ
 
             document.getElementById('btn-game-main').disabled = true;
 
-            // 1.0秒後に大興奮のスタジアムゴールポップアップが出現！
             setTimeout(() => {
                 const overlay = document.getElementById('result-overlay');
                 const announcement = document.getElementById('result-announcement');
@@ -648,6 +736,7 @@
                     announcement.style.animation = "popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) both, goalFlash 0.3s infinite alternate";
                     subText.innerHTML = `🎉 <strong>3連コンボからの、サイキョウほのおシュート！！</strong><br>あいてのキーパーもろとも、ゴールネットをぶちやぶったぞ！！<br><br>💰 <strong>${prize}えん</strong> ゲット！`;
                 } else {
+                    // タイミングを外しても、レベルとスピードが高ければ確率でねじ込める
                     const winChance = playerData.level + playerData.speed;
                     if (Math.random() * winChance > 8) {
                         playerData.money += 20;
@@ -668,14 +757,9 @@
 
         function closeResultOverlay() {
             document.getElementById('result-overlay').style.display = 'none';
-            // 試合エリアを最初の「しあいはじめる！」ボタン状態へリセット
-            document.getElementById('game-mechanic-zone').innerHTML = "";
+            document.getElementById('ui-box-shoot').style.display = 'none';
             document.getElementById('battle-buttons-area').innerHTML = `<button id="btn-game-main" onclick="startMatchCombo()" style="background-color: #d32f2f; box-shadow: 0 4px 0 #b71c1c; width: 85%;">しあいはじめる！</button>`;
             document.getElementById('battle-log').innerText = "コンボを繋げて次のゴールをめざそう！";
-            resetDataStadiumStyle();
-        }
-
-        function resetDataStadiumStyle() {
             resetStadiumElements();
             updateUI();
         }
@@ -684,7 +768,7 @@
             if (confirm('ほんとうにデータをさいしょからにする？')) {
                 localStorage.removeItem('soccer_rpg_save');
                 playerData = { name: "", level: 1, kick: 10, speed: 10, technique: 10, stamina: 10, money: 0 };
-                alert('リセットしました！新しい名前を入力してね。');
+                alert('リセットしました！');
                 location.reload();
             }
         }
