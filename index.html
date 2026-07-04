@@ -3,51 +3,338 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>サッカーせいちょうRPG</title>
+    <title>サッカーせいちょうRPG - スプリント1（仕様変更版）</title>
     <style>
-        body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #2e7d32; color: white; text-align: center; padding: 20px; }
-        .card { background: rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 15px; margin: 20px auto; max-width: 400px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
-        button { background-color: #ff9800; border: none; color: white; padding: 15px 30px; font-size: 18px; font-weight: bold; border-radius: 30px; cursor: pointer; box-shadow: 0 4px 0 #e65100; transition: 0.1s; }
-        button:active { transform: translateY(4px); box-shadow: none; }
-        .battle-log { background: #1b5e20; padding: 10px; border-radius: 5px; min-height: 50px; margin-top: 15px; font-size: 14px; }
+        /* 全体のデザイン（サッカー場をイメージした緑ベース） */
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: #1b5e20;
+            color: #ffffff;
+            text-align: center;
+            padding: 20px;
+            margin: 0;
+        }
+
+        h1 {
+            font-size: 24px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            margin-bottom: 10px;
+        }
+
+        /* カード型レイアウト */
+        .card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            margin: 15px auto;
+            max-width: 400px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        /* プレイヤーキャラクターの表示エリア */
+        .character-area {
+            font-size: 70px; /* ★ステップ3でここをお子さんのイラスト画像に差し替えます */
+            margin: 10px 0;
+            animation: bounce 2s infinite ease-in-out;
+        }
+
+        /* ボタンの共通スタイル */
+        button {
+            background-color: #ff9800;
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 25px;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #e65100;
+            transition: 0.1s;
+            margin: 5px;
+        }
+
+        button:active {
+            transform: translateY(4px);
+            box-shadow: none;
+        }
+
+        /* タイミング合わせのシュートゲージ */
+        .gauge-container {
+            width: 80%;
+            height: 25px;
+            background-color: #ddd;
+            margin: 20px auto;
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid #fff;
+            display: none;
+        }
+
+        /* ゲージ内のヒットエリア（ここを狙う！） */
+        .sweet-spot {
+            position: absolute;
+            left: 70%;
+            width: 15%;
+            height: 100%;
+            background-color: #ff1744; /* 赤いゾーン */
+        }
+
+        /* 左右にビュンビュン動くバー */
+        .gauge-bar {
+            height: 100%;
+            width: 8px;
+            background-color: #333;
+            position: absolute;
+            left: 0;
+            animation: moveBar 1.2s infinite linear alternate;
+        }
+
+        /* 各種ログの表示エリア */
+        .log-box {
+            background: #0d1b2a;
+            padding: 12px;
+            border-radius: 8px;
+            min-height: 40px;
+            margin-top: 10px;
+            font-size: 14px;
+            border-left: 4px solid #00e5ff;
+            text-align: left;
+        }
+
+        /* アニメーションの定義 */
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        @keyframes moveBar {
+            0% { left: 0%; }
+            100% { left: 100%; }
+        }
     </style>
 </head>
 <body>
 
     <h1>⚽️ サッカーせいちょうRPG ⚽️</h1>
-    
+
     <div class="card">
-        <h2>じぶんのステータス</h2>
-        <p style="font-size: 24px;">レベル: <span id="level">1</span></p>
-        <button onclick="train()">れんしゅう完了！</button>
+        <h2>なまえ：<span id="txt-name" style="color: #00e5ff;">？？？</span> 選手</h2>
+        <div class="character-area" id="char-avatar">👦</div>
+        
+        <p style="font-size: 16px; font-weight: bold; line-height: 1.6;">
+            レベル: <span id="txt-level" style="color: #ffeb3b; font-size: 22px;">1</span><br>
+            ⚽️ キック: <span id="txt-kick">10</span> | 
+            ⚡️ スピード: <span id="txt-speed">10</span><br>
+            🪄 テクニック: <span id="txt-technique">10</span> | 
+            ❤️ スタミナ: <span id="txt-stamina">10</span>
+        </p>
+        <p style="font-size: 14px; color: #ffeb3b;">もってるおかね: <span id="txt-money">0</span> えん</p>
+        <button onclick="changeName()" style="background-color: #78909c; box-shadow: 0 4px 0 #455a64; padding: 6px 12px; font-size: 12px;">なまえをかえる</button>
     </div>
 
     <div class="card">
-        <h2>ライバルとバトル</h2>
-        <button onclick="battle()" style="background-color: #d32f2f; box-shadow: 0 4px 0 #b71c1c;">バトルスタート！</button>
-        <div class="battle-log" id="log">じゅんびちゅう...</div>
+        <h3>ほうこく広場（AIかんとく）</h3>
+        <button id="btn-voice" onclick="startSpeech()">🎙 れんしゅうを声でほうこく！</button>
+        <div class="log-box" id="voice-log">上のボタンをおして、「シュートのれんしゅうをしたよ！」などとしゃべってね！がんばったことにあわせてステータスが上がるよ！</div>
     </div>
+
+    <div class="card">
+        <h3>VS 最初のライバルチーム</h3>
+        <button id="btn-battle-init" onclick="readyBattle()" style="background-color: #d32f2f; box-shadow: 0 4px 0 #b71c1c;">しあいはじめる！</button>
+        
+        <div class="gauge-container" id="gauge-box">
+            <div class="sweet-spot"></div>
+            <div class="gauge-bar" id="indicator"></div>
+        </div>
+        
+        <button id="btn-shoot" onclick="fireShoot()" style="background-color: #29b6f6; box-shadow: 0 4px 0 #0288d1; display: none;">🔥 いま、シュート！！</button>
+        <div class="log-box" id="battle-log">じゅんびちゅう...</div>
+    </div>
+
+    <button onclick="resetData()" style="background: none; box-shadow: none; font-size: 10px; color: #aaa; margin-top: 30px;">データをさいしょからにする</button>
 
     <script>
-        let lv = 1;
-        
-        function train() {
-            lv++;
-            document.getElementById('level').innerText = lv;
-            alert('ナイスれんしゅう！ レベルが ' + lv + ' になった！');
+        // --- 1. グローバル変数とセーブデータの定義 ---
+        let playerData = {
+            name: "",
+            level: 1,
+            kick: 10,
+            speed: 10,
+            technique: 10,
+            stamina: 10,
+            money: 0
+        };
+
+        // ページが開いた瞬間にデータをロード＆名前チェック
+        window.onload = function() {
+            const savedData = localStorage.getItem('soccer_rpg_save');
+            if (savedData) {
+                playerData = JSON.parse(savedData);
+            }
+            
+            // 名前がまだ登録されていない場合は入力を促す
+            if (!playerData.name) {
+                setTimeout(() => {
+                    askName();
+                }, 500); // 画面がパッと開いてからポップアップを出すやさしさ設計
+            } else {
+                updateUI();
+            }
+        };
+
+        // 名前を入力してもらう関数
+        function askName() {
+            let inputName = prompt("きみの なまえを おしえてね！", "ひろき");
+            if (inputName === null || inputName.trim() === "") {
+                playerData.name = "ひろき"; // キャンセルされた場合のデフォルト名
+            } else {
+                playerData.name = inputName;
+            }
+            saveGame();
         }
 
-        function battle() {
-            const logEl = document.getElementById('log');
-            logEl.innerText = 'トウッ！ あいてにシュートをはなった！';
+        // 手動で名前を変更する用の関数
+        function changeName() {
+            let inputName = prompt("新しい なまえを おしえてね！", playerData.name);
+            if (inputName !== null && inputName.trim() !== "") {
+                playerData.name = inputName;
+                saveGame();
+            }
+        }
+
+        // 画面の数字を最新の状態に更新する関数
+        function updateUI() {
+            document.getElementById('txt-name').innerText = playerData.name;
+            document.getElementById('txt-level').innerText = playerData.level;
+            document.getElementById('txt-kick').innerText = playerData.kick;
+            document.getElementById('txt-speed').innerText = playerData.speed;
+            document.getElementById('txt-technique').innerText = playerData.technique;
+            document.getElementById('txt-stamina').innerText = playerData.stamina;
+            document.getElementById('txt-money').innerText = playerData.money;
+        }
+
+        // データをローカルに保存する関数
+        function saveGame() {
+            localStorage.setItem('soccer_rpg_save', JSON.stringify(playerData));
+            updateUI();
+        }
+
+        // --- 2. 音声認識（Web Speech API）とAI監督 ---
+        function startSpeech() {
+            const voiceBtn = document.getElementById('btn-voice');
+            const voiceLog = document.getElementById('voice-log');
+
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                voiceLog.innerText = "エラー: このスマホ・ブラウザはマイクに対応していません。";
+                return;
+            }
+
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'ja-JP';
+
+            voiceBtn.innerText = "👂 きいているよ...";
+            voiceLog.innerText = "スマホにむかって、がんばったことを話してね！";
+
+            recognition.start();
+
+            recognition.onresult = function(event) {
+                const text = event.results[0][0].transcript;
+                voiceLog.innerHTML = `<strong>ききとったよ：</strong> 「${text}」<br><br>⏳ AIかんとくがかんがえ中...`;
+
+                setTimeout(() => {
+                    let statusUpText = "";
+                    
+                    // 4つのステータスに対応したキーワード判定ロジック
+                    if (text.includes("シュート") || text.includes("点") || text.includes("キック")) {
+                        playerData.kick += 3;
+                        statusUpText = "⚽️ キックが 3 アップ！";
+                    } else if (text.includes("走") || text.includes("ダッシュ") || text.includes("スピード") || text.includes("はやい")) {
+                        playerData.speed += 3;
+                        statusUpText = "⚡️ スピードが 3 アップ！";
+                    } else if (text.includes("パス") || text.includes("リフティング") || text.includes("うまい") || text.includes("わざ")) {
+                        playerData.technique += 3;
+                        statusUpText = "🪄 テクニックが 3 アップ！";
+                    } else if (text.includes("ドリブル") || text.includes("たいりょく") || text.includes("スタミナ") || text.includes("しあい")) {
+                        playerData.stamina += 3;
+                        statusUpText = "❤️ スタミナが 3 アップ！";
+                    } else {
+                        // 特定のキーワードがない場合でも、全能力が上がるやさしい世界
+                        playerData.kick += 1;
+                        playerData.speed += 1;
+                        playerData.technique += 1;
+                        playerData.stamina += 1;
+                        statusUpText = "🌟 すべての能力が 1 アップ！";
+                    }
+                    
+                    playerData.level += 1;
+                    voiceLog.innerHTML = `🤖 <strong>AIかんとく：</strong><br>「${text}」だね！素晴らしいれんしゅうだ！ごほうびに <strong>${statusUpText}</strong> レベルも上がったぞ！`;
+                    saveGame();
+                    voiceBtn.innerText = "🎙 れんしゅうを声でほうこく！";
+                }, 1500);
+            };
+
+            recognition.onerror = function() {
+                voiceBtn.innerText = "🎙 れんしゅうを声でほうこく！";
+                voiceLog.innerText = "うまくききとれなかったよ。もう一度ボタンをおしてね。";
+            };
+        }
+
+        // --- 3. タイミング合わせシュートバトル ---
+        function readyBattle() {
+            document.getElementById('btn-battle-init').style.display = 'none';
+            document.getElementById('gauge-box').style.display = 'block';
+            document.getElementById('btn-shoot').style.display = 'inline-block';
+            document.getElementById('battle-log').innerText = "うごくバーをよーく狙って、赤いゾーンでシュートをおせ！！";
+        }
+
+        function fireShoot() {
+            const indicator = document.getElementById('indicator');
+            const gaugeBox = document.getElementById('gauge-box');
             
+            const computedStyle = window.getComputedStyle(indicator);
+            const leftStr = computedStyle.getPropertyValue('left');
+            const parentWidth = gaugeBox.offsetWidth;
+            const currentPercent = (parseFloat(leftStr) / parentWidth) * 100;
+
+            document.getElementById('gauge-box').style.display = 'none';
+            document.getElementById('btn-shoot').style.display = 'none';
+            document.getElementById('btn-battle-init').style.display = 'inline-block';
+
+            const battleLog = document.getElementById('battle-log');
+            battleLog.innerText = "ゴゴゴゴ… ほのおのシュートをはなった！！";
+
             setTimeout(() => {
-                if (lv >= 5 || Math.random() > 0.5) {
-                    logEl.innerHTML = '🎉 <strong>かちました！</strong> お小遣い10円ゲット！';
+                // 赤いゾーン（70%〜85%の位置）に入っているか判定
+                if (currentPercent >= 68 && currentPercent <= 87) {
+                    // 【仕様変更】ジャストミート時は、キックとテクニックが高いほど賞金が跳ね上がる！
+                    const prize = 50 + (playerData.kick * 2) + playerData.technique;
+                    playerData.money += prize;
+                    battleLog.innerHTML = `🎉 <strong>ジャストミート！さいきょうシュート！！</strong><br>あいてのキーパーをふっとばしてゴール！ <strong>${prize}えん</strong> ゲットした！`;
                 } else {
-                    logEl.innerHTML = '😢 <strong>まけました...</strong> もっとれんしゅうしてレベルをあげよう！';
+                    // タイミングを外しても、レベルとスピードが高ければ確率で追いついてゴールできる！
+                    const winChance = playerData.level + playerData.speed;
+                    if (Math.random() * winChance > 8) {
+                        playerData.money += 20;
+                        battleLog.innerHTML = `◯ <strong>ゴール！</strong><br>タイミングはズレたけど、${playerData.name}選手のスピードであいてをぬきさって決めたぞ！ <strong>20えん</strong> ゲット！`;
+                    } else {
+                        battleLog.innerHTML = `😢 <strong>キーパーにとめられた…</strong><br>もっとれんしゅうして、レベルやステータスを上げてリベンジだ！`;
+                    }
                 }
-            }, 1000);
+                saveGame();
+            }, 1200);
+        }
+
+        // データを初期化する
+        function resetData() {
+            if (confirm('ほんとうにデータをさいしょからにする？')) {
+                localStorage.removeItem('soccer_rpg_save');
+                playerData = { name: "", level: 1, kick: 10, speed: 10, technique: 10, stamina: 10, money: 0 };
+                alert('リセットしました！ページを読みなおして新しい名前を入力してね。');
+                location.reload(); // ページをリロードして名前入力ポップアップを出す
+            }
         }
     </script>
 </body>
