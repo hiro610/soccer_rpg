@@ -204,7 +204,7 @@
         // ==========================================
         // ★★★ テスト用：Gemini APIキー ★★★
         // ==========================================
-        const GEMINI_API_KEY = "AIzaSyA97Bpp7ezqsDM1JXxBn82XEHyuGDwtyT4";
+        const GEMINI_API_KEY = "ここに取得したGeminiのAPIキーを貼り付けてください";
         
         let playerData = { name: "", level: 1, kick: 10, speed: 10, technique: 10, stamina: 10, money: 0, pet: "なし", history: [] };
         let imageSrcGlobal = "avatar_j.png";
@@ -356,7 +356,7 @@
             const voiceLog = document.getElementById('voice-log');
             voiceLog.innerHTML = `⏳ <strong>AIかんとく（Gemini）</strong> が本気で分析中...`;
 
-            if (!GEMINI_API_KEY || GEMINI_API_KEY === "AIzaSyA97Bpp7ezqsDM1JXxBn82XEHyuGDwtyT4") { fallbackProcess(text); return; }
+            if (!GEMINI_API_KEY || GEMINI_API_KEY === "ここに取得したGeminiのAPIキーを貼り付けてください") { fallbackProcess(text); return; }
 
             const prompt = `あなたは小学生のサッカーの熱血AI監督です。子供が以下の練習内容を報告しました。「${text}」この内容を判断して、キック、スピード、テクニック、スタミナのうち、どれがどれだけ（0〜5の範囲で）上がるべきか評価してください。また、子供を熱く褒めるメッセージを生成してください。必ず以下のJSONフォーマットのみを出力してください。Markdownの装飾(\`\`\`json)は絶対に含めないでください。{"kick":アップ量, "speed":アップ量, "technique":アップ量, "stamina":アップ量, "message":"褒め言葉"}`;
 
