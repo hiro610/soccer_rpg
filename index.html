@@ -221,22 +221,33 @@
             updateUI();
         }
 
-        // --- 2. 音声認識（Web Speech API）とAI監督（手動停止トグル版） ---
+        // --- 2. 音声認識（Web Speech API）とAI監督（リアルタイム・手動停止ハイブリッド版） ---
         let recognition = null;
-        let isListening = false; // いま声をききとり中かどうかのフラグ
+        let isListening = false;
+        let latestTranscript = ""; // 喋った内容をリアルタイムに保存するキャッシュ変数
+        let isProcessed = false;   // 二重処理を防止するためのフラグ
 
         function startSpeech() {
             const voiceBtn = document.getElementById('btn-voice');
             const voiceLog = document.getElementById('voice-log');
 
-            // 【手動停止ロジック】もし、すでにききとり中なら、ボタン押下で手動ストップする
+            // 【手動停止】もし、すでにききとり中なら、ボタン押下で手動ストップ
             if (isListening && recognition) {
-                recognition.stop(); // 認識をストップ（これで音声が確定してonresultが走ります）
-                voiceBtn.innerText = "⏳ AIかんとくにかんそうを送信中...";
+                recognition.stop(); // マイクを止める
+                
+                // まだAIの処理が走っていなければ、その瞬間のキャッシュ文字を使って強制実行
+                if (!isProcessed) {
+                    isProcessed = true;
+                    if (latestTranscript.trim() !== "") {
+                        processAIWithText(latestTranscript);
+                    } else {
+                        voiceLog.innerText = "なにも聞こえなかったよ。もう一度大きな声でためしてね。";
+                    }
+                }
                 return;
             }
 
-            // 初回だけインスタンスを作成して設定する
+            // 初回だけインスタンスを作成して設定
             if (!recognition) {
                 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
                 if (!SpeechRecognition) {
@@ -245,65 +256,58 @@
                 }
                 recognition = new SpeechRecognition();
                 recognition.lang = 'ja-JP';
-                recognition.interimResults = false;
+                recognition.interimResults = true; // ★ここをtrueにしてリアルタイム取得にする
                 recognition.maxAlternatives = 1;
 
                 // ききとりが本当に始まったときの処理
                 recognition.onstart = function() {
                     isListening = true;
+                    isProcessed = false; // フラグをリセット
+                    latestTranscript = ""; // キャッシュをリセット
                     voiceBtn.innerText = "🛑 話しおわったらここをおす！";
-                    voiceBtn.style.backgroundColor = "#d32f2f"; // 録音中はハデな赤色に変える演出
+                    voiceBtn.style.backgroundColor = "#d32f2f";
                     voiceBtn.style.boxShadow = "0 4px 0 #b71c1c";
-                    voiceLog.innerText = "スマホにむかって、がんばったことを話してね！話し終わったら、もういちど上の赤いボタンをおしてね。";
+                    voiceLog.innerText = "スマホにむかって話してね！話し終わったら、上の赤いボタンをおしてね。";
                 };
 
-                // 音声を聞き取ったときの処理（自動停止でも手動停止でもここが走ります）
+                // 話している最中に、文字を検知するたびに何度も走るイベント
                 recognition.onresult = function(event) {
-                    const text = event.results[0][0].transcript;
-                    voiceLog.innerHTML = `<strong>ききとったよ：</strong> 「${text}」<br><br>⏳ AIかんとくがかんがえ中...`;
+                    let resultText = "";
+                    let isFinal = false;
 
-                    setTimeout(() => {
-                        let statusUpText = "";
-                        
-                        if (text.includes("シュート") || text.includes("点") || text.includes("キック")) {
-                            playerData.kick += 3;
-                            statusUpText = "⚽️ キックが 3 アップ！";
-                        } else if (text.includes("走") || text.includes("ダッシュ") || text.includes("スピード") || text.includes("はやい")) {
-                            playerData.speed += 3;
-                            statusUpText = "⚡️ スピードが 3 アップ！";
-                        } else if (text.includes("パス") || text.includes("リフティング") || text.includes("うまい") || text.includes("わざ")) {
-                            playerData.technique += 3;
-                            statusUpText = "🪄 テクニックが 3 アップ！";
-                        } else if (text.includes("ドリブル") || text.includes("たいりょく") || text.includes("スタミナ") || text.includes("しあい")) {
-                            playerData.stamina += 3;
-                            statusUpText = "❤️ スタミナが 3 アップ！";
-                        } else {
-                            playerData.kick += 1;
-                            playerData.speed += 1;
-                            playerData.technique += 1;
-                            playerData.stamina += 1;
-                            statusUpText = "🌟 すべての能力が 1 アップ！";
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        resultText += event.results[i][0].transcript;
+                        if (event.results[i].isFinal) {
+                            isFinal = true; // ブラウザ側が自動で文章の終わりを検知したフラグ
                         }
-                        
-                        playerData.level += 1;
-                        voiceLog.innerHTML = `🤖 <strong>AIかんとく：</strong><br>「${text}」だね！素晴らしいれんしゅうだ！ごほうびに <strong>${statusUpText}</strong> レベルも上がったぞ！`;
-                        saveGame();
-                    }, 1500);
+                    }
+                    
+                    // 最新の文字を常にキャッシュにストック
+                    latestTranscript = resultText;
+                    
+                    // 【自動停止パターン】ボタンを押さずに、自動で文章が確定した場合
+                    if (isFinal && !isProcessed) {
+                        isProcessed = true;
+                        processAIWithText(latestTranscript);
+                    } else if (!isProcessed) {
+                        // 【リアルタイム演出】話している最中は、文字を画面にカタカタ表示する！
+                        voiceLog.innerHTML = `<strong>ききとり中：</strong> 「<span style="color: #00e5ff;">${latestTranscript}</span>」`;
+                    }
                 };
 
                 // エラーが起きたときの処理
                 recognition.onerror = function(event) {
-                    // 手動停止したときに一瞬発生する aborted エラーは正常なので無視する
-                    if (event.error !== 'aborted') {
-                        voiceLog.innerText = "うまくききとれなかったよ。もう一度ボタンをおしてね。(error: " + event.error + ")";
+                    // 手動停止したときに発生する aborted は正常なのでエラー表示しない
+                    if (event.error !== 'aborted' && !isProcessed) {
+                        voiceLog.innerText = "うまくききとれなかったよ。(error: " + event.error + ")";
                     }
                 };
 
-                // 自動でも手動でも、音声認識が完全に終了したときの片付け処理
+                // 音声認識が完全に終了したときの片付け処理（手動・自動どちらでも最後にここを通る）
                 recognition.onend = function() {
                     isListening = false;
                     voiceBtn.innerText = "🎙 れんしゅうを声でほうこく！";
-                    voiceBtn.style.backgroundColor = "#ff9800"; // 元のオレンジ色に戻す
+                    voiceBtn.style.backgroundColor = "#ff9800";
                     voiceBtn.style.boxShadow = "0 4px 0 #e65100";
                 };
             }
@@ -314,6 +318,40 @@
             } catch (e) {
                 console.log(e);
             }
+        }
+
+        // 🤖 AI監督のステータスアップ処理（独立した関数にリファクタリング）
+        function processAIWithText(text) {
+            const voiceLog = document.getElementById('voice-log');
+            voiceLog.innerHTML = `<strong>ききとったよ：</strong> 「${text}」<br><br>⏳ AIかんとくがかんがえ中...`;
+
+            setTimeout(() => {
+                let statusUpText = "";
+                
+                if (text.includes("シュート") || text.includes("点") || text.includes("キック")) {
+                    playerData.kick += 3;
+                    statusUpText = "⚽️ キックが 3 アップ！";
+                } else if (text.includes("走") || text.includes("ダッシュ") || text.includes("スピード") || text.includes("はやい")) {
+                    playerData.speed += 3;
+                    statusUpText = "⚡️ スピードが 3 アップ！";
+                } else if (text.includes("パス") || text.includes("リフティング") || text.includes("うまい") || text.includes("わざ")) {
+                    playerData.technique += 3;
+                    statusUpText = "🪄 テクニックが 3 アップ！";
+                } else if (text.includes("ドリブル") || text.includes("たいりょく") || text.includes("スタミナ") || text.includes("しあい")) {
+                    playerData.stamina += 3;
+                    statusUpText = "❤️ スタミナが 3 アップ！";
+                } else {
+                    playerData.kick += 1;
+                    playerData.speed += 1;
+                    playerData.technique += 1;
+                    playerData.stamina += 1;
+                    statusUpText = "🌟 すべての能力が 1 アップ！";
+                }
+                
+                playerData.level += 1;
+                voiceLog.innerHTML = `🤖 <strong>AIかんとく：</strong><br>「${text}」だね！素晴らしいれんしゅうだ！ごほうびに <strong>${statusUpText}</strong> レベルも上がったぞ！`;
+                saveGame();
+            }, 1500);
         }
 
         // --- 3. タイミング合わせシュートバトル ---
