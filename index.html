@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>サッカーせいちょうRPG - スプリント1（最終形態版）</title>
+    <title>サッカーせいちょうRPG - スプリント1（バグ修正版）</title>
     <style>
         /* 【常時ダブルタップズーム防止】アプリ全体でズームを完全にシャットアウト */
         html, body, button, .card, .mini-stadium, .glass-box, .gauge-container {
@@ -200,7 +200,7 @@
             width: 50px;
             height: 50px;
             font-size: 40px;
-            transition: left 0.1s ease-out, bottom 0.12s ease-out; /* 着地判定のために少しキビキビ化 */
+            transition: left 0.1s ease-out, bottom 0.12s ease-out;
             z-index: 10;
         }
         .match-avatar img { width: 100%; height: 100%; object-fit: contain; }
@@ -237,14 +237,14 @@
             z-index: 2;
         }
 
-        /* ★新設：黄金のスーパーゴールゾーン */
+        /* 黄金のスーパーゴールゾーン */
         .gold-spot {
             position: absolute;
             width: 4%;
             height: 100%;
-            background-color: #ffd700; /* ゴールド */
+            background-color: #ffd700;
             box-shadow: 0 0 8px #ffd700;
-            z-index: 3; /* 赤枠よりさらに前に出す */
+            z-index: 3;
         }
 
         .gauge-bar {
@@ -253,7 +253,7 @@
             background-color: #333;
             position: absolute;
             left: 0;
-            z-index: 4; /* バーが一番前 */
+            z-index: 4;
         }
 
         .mash-bar {
@@ -403,7 +403,8 @@
             <div id="ui-box-shoot" style="display: none;">
                 <div class="gauge-container" id="final-gauge-box">
                     <div class="sweet-spot" id="ui-sweet-spot"></div>
-                    <div class="gold-spot" id="ui-gold-spot"></div> <div class="gauge-bar" id="final-indicator"></div>
+                    <div class="gold-spot" id="ui-gold-spot"></div>
+                    <div class="gauge-bar" id="final-indicator"></div>
                 </div>
             </div>
         </div>
@@ -520,7 +521,7 @@
             }, 1500);
         }
 
-        // --- 3. 3連コンボガチンコアクションシステム ---
+        // --- 3. 3連コンボアクションシステム ---
         let currentMatchStamina = 10;
         let maxMatchStamina = 10;
         let mashProgress = 0;
@@ -530,16 +531,15 @@
         let enemyPositionLeft = 110;
         let enemySpeed = 1.5;
         let enemyCounter = 0;      
-        let isJumping = false;     // 空中ガードフラグ
+        let isJumping = false;     
         let hasHitThisEnemy = false; 
+        let isMatchForcedEnd = false; // スタミナ1での強制移行判定フラグ
 
-        // 判定用のグローバル座標ストック
         window.targetSpotLeft = 70;
         window.targetGoldLeft = 75;
         window.targetGoldWidth = 4;
 
         function updateStaminaUI() {
-            // 見た目の整数化
             const displayStamina = Math.ceil(currentMatchStamina);
             document.getElementById('txt-match-stamina-val').innerText = `${displayStamina}/${maxMatchStamina}`;
             const bar = document.getElementById('ui-stamina-bar');
@@ -556,7 +556,8 @@
             player.style.left = "10%"; player.style.bottom = "15px";
             enemy.style.left = "110%"; enemy.style.transform = "none";
             enemy.innerText = "🏃‍♂️";
-            isJumping = false; // フラグもリセット
+            isJumping = false;
+            isMatchForcedEnd = false;
             document.getElementById('ui-jump-marker').style.display = 'none';
             document.getElementById('ui-box-dribble').style.display = 'none';
             document.getElementById('ui-box-jump').style.display = 'none';
@@ -571,53 +572,67 @@
             initDribblePhase();
         }
 
-        // ── フェーズ1：ダッシュ連打（★新仕様：100%になるまで延々とスタミナドレイン） ──
+        // ── フェーズ1：ダッシュ連打（無限ドレイン・バグ修正版） ──
         function initDribblePhase() {
             matchPhase = "dribble";
             mashProgress = 0;
+            isMatchForcedEnd = false;
             
             document.getElementById('ui-box-dribble').style.display = 'block';
-            document.getElementById('battle-log').innerText = "【フェーズ1】連打（れんだ）でメーターを100%にしろ！おそいとスタミナがどんどん減るぞ！";
+            document.getElementById('battle-log').innerText = "【フェーズ1】連打（れんだ）でメーターを100%にしろ！おそいとスタミナがなくなるぞ！";
             document.getElementById('battle-buttons-area').innerHTML = `<button id="btn-game-main" onclick="executeMash()" style="background-color: #29b6f6; box-shadow: 0 4px 0 #0288d1; width:85%; font-size:18px;">🔥 ダッシュ連打！！！</button>`;
 
-            // 無限ドレインのループ処理（50ms周期）
             gameLoopInterval = setInterval(() => {
-                // 自然減少
                 const decay = Math.max(0.5, 1.0 + (playerData.level * 0.04));
                 mashProgress = Math.max(0, mashProgress - decay);
                 document.getElementById('dribble-mash-bar').style.width = mashProgress + "%";
                 document.getElementById('stadium-player').style.left = (10 + (mashProgress * 0.4)) + "%";
                 
-                // ★【新仕様】：100%になるまで延々とスタミナが減り続ける
-                // 50msごとに 0.08 減る（1秒で 1.6 減る過酷なドレイン）
+                // スタミナ消費
                 currentMatchStamina = Math.max(1, currentMatchStamina - 0.08);
                 updateStaminaUI();
 
-                // 100%に到達したら突破！
-                if (mashProgress >= 100) {
+                // ★【追加】スタミナが1になったら強制的にジャンプフェーズに移動！
+                if (currentMatchStamina <= 1) {
                     clearInterval(gameLoopInterval);
+                    isMatchForcedEnd = true; // 強制終了フラグを立てる
                     endDribblePhase();
                 }
             }, 50);
         }
 
+        // ボタンが押された瞬間
         function executeMash() {
+            if (matchPhase !== "dribble") return;
             const mashGain = 6 + (playerData.speed / 5);
             mashProgress = Math.min(100, mashProgress + mashGain);
             document.getElementById('dribble-mash-bar').style.width = mashProgress + "%";
+
+            // ★【バグ修正】：ボタンが押されて100%になったその瞬間にタイマーを止めクリア判定に移行させる！
+            if (mashProgress >= 100) {
+                clearInterval(gameLoopInterval);
+                endDribblePhase();
+            }
         }
 
         function endDribblePhase() {
             const log = document.getElementById('battle-log');
-            log.innerHTML = `<span style="color:#4caf50; font-weight:bold;">✨ ドリブル突破！</span> すばらしいダッシュだ！`;
+            
+            if (isMatchForcedEnd) {
+                // スタミナ1による強制終了
+                log.innerHTML = `<span style="color:#f44336; font-weight:bold;">🚨 スタミナぎれ！</span> つかれはてて走れなくなった！強制（きょうせい）ジャンプへ！`;
+            } else if (mashProgress >= 100) {
+                // 連打で100%達成
+                log.innerHTML = `<span style="color:#4caf50; font-weight:bold;">✨ ドリブル大せいこう！</span> メーターMAXであいてをぬきさった！`;
+            }
 
             setTimeout(() => {
                 document.getElementById('ui-box-dribble').style.display = 'none';
                 initJumpPhase();
-            }, 1200);
+            }, 1500);
         }
 
-        // ── フェーズ2：3人抜きリアルタイム物理ジャンプ（★空中ジャンプ完全禁止ガード） ──
+        // ── フェーズ2：3人抜きジャンプ（空中連打ガード完全対応） ──
         function initJumpPhase() {
             matchPhase = "jump";
             enemyCounter = 0; 
@@ -683,23 +698,21 @@
             }, 30);
         }
 
-        // 何度でも実行できるジャンプ関数（★新仕様：空中ジャンプ完全ガード）
         function executeJump() {
-            // ★【新仕様】：空中にいる（isJumpingがtrue）のときは、何回押しても処理を完全無視！
+            // ★空中ジャンプ完全ガード（着地するまで再ジャンプ不可）
             if (isJumping) return; 
-            isJumping = true; // 空中ロックオン
+            isJumping = true; 
 
             const player = document.getElementById('stadium-player');
             player.style.bottom = "68px"; 
 
-            // 0.38秒後に「着地」して、初めて次のジャンプが可能になる
             setTimeout(() => {
                 player.style.bottom = "15px";
-                isJumping = false; // ★ここで初めて着地解放！
+                isJumping = false; // 着地して解放
             }, 380);
         }
 
-        // ── フェーズ3：最後のシュート（★新仕様：黄金のスーパーゴール ✕ ガチンコ判定） ──
+        // ── フェーズ3：最後のゴールドシュート ──
         function initShootPhase() {
             matchPhase = "shoot";
             const enemy = document.getElementById('stadium-enemy');
@@ -707,24 +720,21 @@
             enemy.style.left = "85%";
 
             document.getElementById('ui-box-shoot').style.display = 'block';
-            document.getElementById('battle-log').innerText = "【ファイナル】ラストシュート！うごくバーを【金色のわく】でとめると、おかねが2倍！！";
+            document.getElementById('battle-log').innerText = "【ファイナル】ラストシュート！動くバーを【金色のわく】でとめると、おかねが2倍！！";
             document.getElementById('battle-buttons-area').innerHTML = `<button id="btn-game-main" onclick="executeShoot()" style="background-color: #29b6f6; box-shadow: 0 4px 0 #0288d1; width:85%; font-size:18px;">🔥 いま、シュート！！！</button>`;
 
-            // 1. キック力に応じて赤枠の幅を計算
             const sweetSpot = document.getElementById('ui-sweet-spot');
             const spotWidth = Math.min(45, 14 + (playerData.kick / 3)); 
             const spotLeft = 85 - spotWidth;
             sweetSpot.style.width = spotWidth + "%";
             sweetSpot.style.left = spotLeft + "%";
 
-            // ★【新仕様】：赤枠のど真ん中に、ゴールドスポット（幅4%）を自動配置！
             const goldSpot = document.getElementById('ui-gold-spot');
-            const goldWidth = Math.min(8, 3.5 + (playerData.kick * 0.05)); // キック力で金色もミリ単位で広がるやさしさ
+            const goldWidth = Math.min(8, 3.5 + (playerData.kick * 0.05)); 
             const goldLeft = spotLeft + (spotWidth / 2) - (goldWidth / 2);
             goldSpot.style.width = goldWidth + "%";
             goldSpot.style.left = goldLeft + "%";
 
-            // 判定ロジック用にグローバル変数へ座標を書き出し
             window.targetSpotLeft = spotLeft;
             window.targetGoldLeft = goldLeft;
             window.targetGoldWidth = goldWidth;
@@ -759,19 +769,17 @@
                 
                 overlay.style.display = 'flex';
                 
-                // ゴールドの右端
                 const goldRight = window.targetGoldLeft + window.targetGoldWidth;
 
-                // ★【判定分岐】：まずは金色の超激ムズ判定から
+                // 判定ロジック（金色 ➔ 赤枠 ➔ 外れ）
                 if (currentPercent >= window.targetGoldLeft && currentPercent <= goldRight) {
-                    // 👑 【大成功：黄金のスーパーゴール（賞金2倍）】 👑
                     const basePrize = 50 + (playerData.kick * 2) + playerData.technique;
-                    const superPrize = basePrize * 2; // お金2倍！！
+                    const superPrize = basePrize * 2; 
                     playerData.money += superPrize;
 
                     announcement.innerHTML = "👑✨ SUPER GOAL!!! ✨👑";
-                    announcement.style.color = "#ffd700"; // 完全ゴールド
-                    announcement.style.animation = "popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) both, goalFlash 0.15s infinite alternate"; // 高速点滅
+                    announcement.style.color = "#ffd700"; 
+                    announcement.style.animation = "popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) both, goalFlash 0.15s infinite alternate"; 
                     
                     subText.innerHTML = `
                         伝説（でんせつ）のゴール誕生！！<br>
@@ -782,7 +790,6 @@
                     document.getElementById('battle-log').innerHTML = `👑 金色ジャストミートでスーパーゴール！！`;
 
                 } else if (currentPercent >= window.targetSpotLeft && currentPercent <= 85) {
-                    // ⚽️ 【成功：通常の赤枠ゴール】 ⚽️
                     const prize = 50 + (playerData.kick * 2) + playerData.technique;
                     playerData.money += prize;
 
@@ -794,7 +801,6 @@
                     document.getElementById('battle-log').innerHTML = `🎉 ナイスシュートでゴール！`;
 
                 } else {
-                    // 🧤 【失敗：赤枠の外（100%キーパーセーブ）】 🧤
                     announcement.innerHTML = "🧤 SAVED... 😢";
                     announcement.style.color = "#b0bec5";
                     announcement.style.animation = "popIn 0.4s both";
