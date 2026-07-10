@@ -153,12 +153,14 @@
     <div id="screen-training" class="screen">
         <div class="card">
             <h3>🎙️ ほうこく広場（AIかんとく）</h3>
-            <button id="btn-voice" onclick="startSpeech(); playSound('tap');" style="margin: 0 auto; display: block;">れんしゅうを声でほうこく！</button>
+            <button id="btn-voice" onclick="startSpeech()" style="margin: 0 auto; display: block;">れんしゅうを声でほうこく！</button>
             <div class="log-box" id="voice-log">上のボタンをおして、「シュートのれんしゅうをしたよ！」などとしゃべってね！</div>
+            
             <div id="confirm-buttons-area" style="display: none; margin-top: 15px;">
-                <button id="btn-confirm-ok" onclick="commitVoiceResult(); playSound('tap');" style="background-color: #4caf50; box-shadow: 0 4px 0 #388e3c; padding: 14px 28px; font-size: 18px; margin: 0 auto 10px auto; display: block;">👍 これでOK！</button>
-                <button id="btn-confirm-retry" onclick="retryVoiceInput(); playSound('tap');" style="background-color: #f44336; box-shadow: 0 4px 0 #d32f2f; padding: 14px 28px; font-size: 18px; margin: 0 auto; display: block;">🔄 やりなおす</button>
+                <button id="btn-confirm-ok" onclick="commitVoiceResult()" style="background-color: #4caf50; box-shadow: 0 4px 0 #388e3c; padding: 14px 28px; font-size: 18px; margin: 0 auto 10px auto; display: block;">👍 これでOK！</button>
+                <button id="btn-confirm-retry" onclick="retryVoiceInput()" style="background-color: #f44336; box-shadow: 0 4px 0 #d32f2f; padding: 14px 28px; font-size: 18px; margin: 0 auto; display: block;">🔄 やりなおす</button>
             </div>
+            
             <h4 style="font-size: 13px; margin-top: 20px; margin-bottom: 5px; text-align: left; border-bottom: 1px solid #555; padding-bottom: 5px;">📖 最近のれんしゅうキロク</h4>
             <div class="history-box" id="history-box">記録はまだありません。</div>
         </div>
@@ -407,6 +409,7 @@
             ball.style.top = liftY + "px";
             ball.style.transform = `rotate(${liftAngle}deg)`;
 
+            // ボールが地面に落ちたらゲームオーバー
             if (liftY > 320) {
                 endLiftingGame("落としてしまった...");
             } else {
@@ -417,6 +420,7 @@
         function tapLifting() {
             if (liftState !== "playing") return;
             
+            // 判定エリア (Y: 240 ~ 320 をヒットとする)
             if (liftY >= 240 && liftY <= 320) {
                 let isPerfect = (liftY >= 280 && liftY <= 300);
                 showHitText(isPerfect ? "PERFECT!" : "GREAT!", isPerfect ? "popup-perfect" : "popup-great");
@@ -426,6 +430,7 @@
                 document.getElementById('lift-count').innerText = liftCount;
                 playSound('kick');
             } else {
+                // ペナルティ：空振り
                 showHitText("MISS...", "popup-miss");
                 endLiftingGame("空振りした！");
             }
@@ -512,32 +517,88 @@
             return `${now.getMonth() + 1}/${now.getDate()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
         }
 
-        // --- ★音声入力（安定版に戻しました） ---
-        let recognition = null; let isListening = false; let latestTranscript = ""; let isWaitingConfirm = false;
+        // --- ★音声入力（マイクとオーディオの競合を完全に回避） ---
+        let recognition = null; 
+        let isListening = false; 
+        let latestTranscript = ""; 
 
         function startSpeech() {
-            const voiceBtn = document.getElementById('btn-voice'); const voiceLog = document.getElementById('voice-log');
-            if (isListening && recognition) { isWaitingConfirm = true; recognition.stop(); voiceBtn.style.display = "none"; voiceLog.innerText = "⏳ いま話した言葉をあつめています..."; return; }
-            if (!recognition) {
-                const SpeechRecognition = window.WindowsSpeechRecognition || window.SpeechRecognition || window.webkitSpeechRecognition;
-                if (!SpeechRecognition) { voiceLog.innerText = "エラー: マイク非対応"; return; }
-                recognition = new SpeechRecognition(); recognition.lang = 'ja-JP'; recognition.interimResults = true; recognition.maxAlternatives = 1; recognition.continuous = true; 
-                recognition.onstart = function() { isListening = true; isWaitingConfirm = false; latestTranscript = ""; voiceBtn.innerText = "🛑 話しおわったらここをおす！"; voiceBtn.style.backgroundColor = "#d32f2f"; voiceLog.innerText = "スマホにむかってゆっくり話してね！"; };
-                recognition.onresult = function(event) { let resultText = ""; for (let i = event.resultIndex; i < event.results.length; i++) { resultText += event.results[i][0].transcript; } latestTranscript = resultText; voiceLog.innerHTML = `<strong>ききとり中：</strong> 「<span style="color: #00e5ff;">${latestTranscript}</span>」`; };
-                recognition.onerror = function(event) { if (event.error !== 'aborted') { voiceLog.innerText = "エラー発生"; resetVoiceUI(); } };
-                recognition.onend = function() { isListening = false; if (isWaitingConfirm) { document.getElementById('confirm-buttons-area').style.display = 'block'; if (latestTranscript.trim() === "") { document.getElementById('voice-log').innerHTML = `何も聞こえなかったよ。`; document.getElementById('btn-confirm-ok').disabled = true; } else { document.getElementById('voice-log').innerHTML = `🤖 <strong>AIかんとく：</strong><br>「<span style="color: #00e5ff;">${latestTranscript}</span>」<br>でOKなら緑のボタンをおしてね！`; document.getElementById('btn-confirm-ok').disabled = false; } } else { resetVoiceUI(); } };
+            const voiceBtn = document.getElementById('btn-voice'); 
+            const voiceLog = document.getElementById('voice-log');
+            
+            if (isListening && recognition) { 
+                recognition.stop(); 
+                voiceBtn.style.display = "none"; 
+                voiceLog.innerText = "⏳ いま話した言葉をあつめています..."; 
+                return; 
             }
-            try { recognition.start(); } catch (e) { console.log(e); }
+
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) { 
+                voiceLog.innerText = "エラー: マイク非対応ブラウザです。SafariやChromeを使ってね。"; 
+                return; 
+            }
+            
+            recognition = new SpeechRecognition(); 
+            recognition.lang = 'ja-JP'; 
+            recognition.interimResults = true; 
+            recognition.maxAlternatives = 1; 
+            recognition.continuous = true; 
+
+            recognition.onstart = function() { 
+                isListening = true; 
+                latestTranscript = ""; 
+                voiceBtn.innerText = "🛑 話しおわったらここをおす！"; 
+                voiceBtn.style.backgroundColor = "#d32f2f"; 
+                voiceLog.innerText = "スマホにむかってゆっくり話してね！"; 
+            };
+            
+            recognition.onresult = function(event) { 
+                let resultText = ""; 
+                for (let i = event.resultIndex; i < event.results.length; i++) { 
+                    resultText += event.results[i][0].transcript; 
+                } 
+                latestTranscript = resultText; 
+                voiceLog.innerHTML = `<strong>ききとり中：</strong> 「<span style="color: #00e5ff;">${latestTranscript}</span>」`; 
+            };
+            
+            recognition.onerror = function(event) { 
+                if (event.error !== 'aborted') { 
+                    voiceLog.innerText = "エラーが発生したよ。もう一度ためしてね。"; 
+                    resetVoiceUI(); 
+                } 
+            };
+            
+            recognition.onend = function() { 
+                isListening = false; 
+                if (latestTranscript.trim() === "") { 
+                    voiceLog.innerHTML = `何も聞こえなかったよ。`; 
+                    resetVoiceUI();
+                } else { 
+                    document.getElementById('confirm-buttons-area').style.display = 'block'; 
+                    voiceBtn.style.display = "none"; 
+                    document.getElementById('voice-log').innerHTML = `🤖 <strong>AIかんとく：</strong><br>「<span style="color: #00e5ff;">${latestTranscript}</span>」<br>でOKなら緑のボタンをおしてね！`; 
+                    document.getElementById('btn-confirm-ok').disabled = false; 
+                } 
+            };
+
+            try { 
+                recognition.start(); 
+            } catch (e) { 
+                console.log(e); 
+                resetVoiceUI();
+            }
         }
-        function retryVoiceInput() { isWaitingConfirm = false; document.getElementById('confirm-buttons-area').style.display = 'none'; resetVoiceUI(); }
-        function commitVoiceResult() { isWaitingConfirm = false; document.getElementById('confirm-buttons-area').style.display = 'none'; callGeminiAPI(latestTranscript); }
+        
+        function retryVoiceInput() { document.getElementById('confirm-buttons-area').style.display = 'none'; resetVoiceUI(); }
+        function commitVoiceResult() { document.getElementById('confirm-buttons-area').style.display = 'none'; callGeminiAPI(latestTranscript); }
+        
         function resetVoiceUI() { 
             const voiceBtn = document.getElementById('btn-voice'); 
             voiceBtn.style.display = 'block'; 
             voiceBtn.style.margin = '0 auto';
             voiceBtn.innerText = "🎙 れんしゅうを声でほうこく！"; 
             voiceBtn.style.backgroundColor = "#ff9800"; 
-            document.getElementById('voice-log').innerText = "上のボタンをおして練習を教えてね！"; 
             document.getElementById('confirm-buttons-area').style.display = 'none';
         }
 
@@ -578,6 +639,7 @@ ${pastHistoryText}子供が今回の練習内容を報告しました。
 
                 voiceLog.innerHTML = `🤖 <strong>AIかんとく：</strong><br>「${result.message}」<br><div class="report-box"><strong>📊 AI分析リポート</strong><br>━<br>${result.kick > 0 ? `⚽️ キック +${result.kick}<br>` : ''}${result.speed > 0 ? `⚡️ スピード +${result.speed}<br>` : ''}${result.technique > 0 ? `🪄 テクニック +${result.technique}<br>` : ''}${result.stamina > 0 ? `❤️ スタミナ +${result.stamina}<br>` : ''}━</div><br><button onclick="resetVoiceUI()" style="background-color: #4caf50; margin: 0 auto; display: block;">つぎのれんしゅうへ</button>`;
                 
+                // ここは通信完了の合図として音を鳴らしてOK
                 playSound('supergoal'); 
 
                 playerData.history.push({ input: text, reply: result.message, timestamp: getCurrentTimestamp() });
