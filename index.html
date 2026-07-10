@@ -52,7 +52,7 @@
         .btn-map.match { background: linear-gradient(135deg, #f44336, #c62828); border-color: #ef9a9a; }
         .btn-map.minigame { background: linear-gradient(135deg, #0288d1, #01579b); border-color: #81d4fa; }
 
-        .btn-back { background-color: #78909c; border: none; color: white; padding: 10px; width: 100%; margin-top: 20px; font-size: 14px; border-radius: 25px; }
+        .btn-back { background-color: #78909c; border: none; color: white; padding: 10px; width: 100%; margin-top: 20px; font-size: 14px; border-radius: 25px; display: block; margin-left: auto; margin-right: auto; }
 
         button { background-color: #ff9800; border: none; color: white; padding: 10px 20px; font-size: 15px; font-weight: bold; border-radius: 25px; cursor: pointer; box-shadow: 0 4px 0 #e65100; transition: 0.1s; margin: 5px; }
         button:disabled { background-color: #78909c !important; box-shadow: 0 4px 0 #455a64 !important; }
@@ -115,12 +115,16 @@
 </head>
 <body id="game-body">
 
+    <!-- 共通ヘッダー -->
     <div class="header-status">
         <div style="font-weight: bold; color: #00e5ff;">👤 <span id="txt-name-header">？？？</span></div>
         <div style="color: #ffeb3b; font-weight: bold;">💰 <span id="txt-money-header">0</span>円</div>
         <div style="color: #4caf50; font-weight: bold;">🏆 Lv.<span id="txt-level-header">1</span></div>
     </div>
 
+    <!-- ===================================== -->
+    <!-- 📍 画面1：マップ画面（ホーム） -->
+    <!-- ===================================== -->
     <div id="screen-map" class="screen active">
         <div class="card status-card">
             <div id="bg-img-container"></div>
@@ -147,17 +151,21 @@
             <button class="btn-map match" onclick="showScreen('match'); playSound('tap');">🔥 スタジアムでしあいをする！</button>
         </div>
         
-        <button onclick="changeName()" style="background-color: transparent; box-shadow: none; font-size: 12px; text-decoration: underline; margin-top: 20px;">なまえをかえる</button>
+        <button onclick="changeName()" style="background-color: transparent; box-shadow: none; font-size: 12px; text-decoration: underline; margin-top: 20px; margin-bottom: 10px; display: block; margin-left: auto; margin-right: auto;">なまえをかえる</button>
     </div>
 
+    <!-- ===================================== -->
+    <!-- 📍 画面2：練習場（AI音声入力） -->
+    <!-- ===================================== -->
     <div id="screen-training" class="screen">
         <div class="card">
             <h3>🎙️ ほうこく広場（AIかんとく）</h3>
+            <!-- ★ボタン中央寄せ -->
             <button id="btn-voice" onclick="startSpeech(); playSound('tap');" style="margin: 0 auto; display: block;">れんしゅうを声でほうこく！</button>
             <div class="log-box" id="voice-log">上のボタンをおして、「シュートのれんしゅうをしたよ！」などとしゃべってね！</div>
             <div id="confirm-buttons-area" style="display: none; margin-top: 15px;">
-                <button id="btn-confirm-ok" onclick="commitVoiceResult(); playSound('tap');" style="background-color: #4caf50; box-shadow: 0 4px 0 #388e3c; padding: 14px 28px; font-size: 18px;">👍 これでOK！</button>
-                <button id="btn-confirm-retry" onclick="retryVoiceInput(); playSound('tap');" style="background-color: #f44336; box-shadow: 0 4px 0 #d32f2f; padding: 14px 28px; font-size: 18px;">🔄 やりなおす</button>
+                <button id="btn-confirm-ok" onclick="commitVoiceResult(); playSound('tap');" style="background-color: #4caf50; box-shadow: 0 4px 0 #388e3c; padding: 14px 28px; font-size: 18px; margin: 0 auto 10px auto; display: block;">👍 これでOK！</button>
+                <button id="btn-confirm-retry" onclick="retryVoiceInput(); playSound('tap');" style="background-color: #f44336; box-shadow: 0 4px 0 #d32f2f; padding: 14px 28px; font-size: 18px; margin: 0 auto; display: block;">🔄 やりなおす</button>
             </div>
             <h4 style="font-size: 13px; margin-top: 20px; margin-bottom: 5px; text-align: left; border-bottom: 1px solid #555; padding-bottom: 5px;">📖 最近のれんしゅうキロク</h4>
             <div class="history-box" id="history-box">記録はまだありません。</div>
@@ -165,15 +173,21 @@
         <button class="btn-back" onclick="showScreen('map'); playSound('tap');">🔙 マップにもどる</button>
     </div>
 
+    <!-- ===================================== -->
+    <!-- 📍 画面3：リフティングミニゲーム -->
+    <!-- ===================================== -->
     <div id="screen-lifting" class="screen">
         <div class="card" style="height: 380px; position: relative;" id="lifting-area">
             <h3>⚽ リフティング特訓</h3>
             <p style="font-size: 12px; margin: 0;">赤い線の近くにボールが来たらタップ！<br>遠すぎると空振りで即終了だ！</p>
             <div style="font-size:30px; font-weight:bold; color:#ffeb3b; margin-top:10px;">回数: <span id="lift-count">0</span></div>
             
+            <!-- ボール -->
             <div id="lift-ball" style="position:absolute; left: 40%; top:50px; font-size: 50px; z-index: 10;">⚽</div>
+            <!-- 判定ライン (bottom 80px は Y座標約250px付近) -->
             <div style="position:absolute; bottom: 80px; width:100%; border-top: 3px dashed #ff1744; left:0; z-index: 5;"></div>
             
+            <!-- 結果とリトライボタン（ミスしても誤爆しない） -->
             <div id="lift-result-area" style="display:none; position:absolute; top:35%; left:10%; width:80%; background:rgba(0,0,0,0.9); border:2px solid #ffeb3b; border-radius:10px; padding:15px; z-index:30; box-sizing: border-box;">
                 <p id="lift-result-text" style="font-size:16px; font-weight:bold; line-height: 1.5; margin-top:0;"></p>
                 <button onclick="initLifting(); playSound('tap');" style="background-color:#4caf50; width:90%; margin: 0 auto 10px auto; display: block; font-size:14px;">🔄 もう１回やる</button>
@@ -181,12 +195,17 @@
             </div>
         </div>
         
+        <!-- ★ボタンをすべて中央揃えに修正 -->
         <button id="btn-lift-start" onclick="startLifting(); playSound('whistle');" style="width: 85%; padding: 20px; font-size: 22px; background-color: #ff9800; color:#fff; box-shadow: 0 4px 0 #e65100; margin: 0 auto 10px auto; display: block;">▶️ スタート！</button>
         <button id="btn-lift-action" onclick="tapLifting()" style="display:none; width: 85%; padding: 20px; font-size: 22px; background-color: #00e5ff; color:#0d1b2a; box-shadow: 0 4px 0 #00b8d4; margin: 0 auto 10px auto;">👟 蹴る！！！</button>
         
+        <!-- ゲーム中はこのボタンを消すことで誤爆を防止 -->
         <button class="btn-back" id="btn-lift-back" onclick="showScreen('map'); playSound('tap');" style="margin: 0 auto; display: block;">🔙 マップにもどる</button>
     </div>
 
+    <!-- ===================================== -->
+    <!-- 📍 画面4：ショップ -->
+    <!-- ===================================== -->
     <div id="screen-shop" class="screen">
         <div class="card">
             <h3>🍇 まほうのショップ</h3>
@@ -201,6 +220,9 @@
         <button class="btn-back" onclick="showScreen('map'); playSound('tap');">🔙 マップにもどる</button>
     </div>
 
+    <!-- ===================================== -->
+    <!-- 📍 画面5：スタジアム（試合） -->
+    <!-- ===================================== -->
     <div id="screen-match" class="screen">
         <div class="card">
             <h3>🔥 VS ライバルチーム</h3>
@@ -238,6 +260,7 @@
         <button class="btn-back" onclick="showScreen('map'); playSound('tap');" id="btn-back-map">🔙 マップにもどる</button>
     </div>
 
+    <!-- ゴールポップアップ -->
     <div id="result-overlay">
         <div id="result-announcement">GOAL!!</div>
         <div id="result-sub-box"><p id="result-sub-text" style="margin: 0;"></p></div>
@@ -351,7 +374,7 @@
 
         function saveGame() { localStorage.setItem('soccer_rpg_save', JSON.stringify(playerData)); updateUI(); }
 
-        // --- ★改修：ミニゲーム リフティング ---
+        // --- ミニゲーム リフティング ---
         let liftY = 50;
         let liftVy = 0;
         let liftAngle = 0;
@@ -368,14 +391,12 @@
             ball.style.top = liftY + "px";
             ball.style.transform = `rotate(0deg)`;
             
-            // ★ボタンを初期状態に戻す（disabledを解除）
             const btnAction = document.getElementById('btn-lift-action');
-            btnAction.disabled = false;
+            btnAction.style.display = 'none';
             
             document.getElementById('btn-lift-start').style.display = 'block';
-            btnAction.style.display = 'none';
             document.getElementById('lift-result-area').style.display = 'none';
-            document.getElementById('btn-lift-back').style.display = 'block'; // マップに戻るボタン復活
+            document.getElementById('btn-lift-back').style.display = 'block'; 
             
             if(liftAnimationFrame) cancelAnimationFrame(liftAnimationFrame);
         }
@@ -383,9 +404,10 @@
         function startLifting() {
             liftState = "playing";
             document.getElementById('btn-lift-start').style.display = 'none';
-            document.getElementById('btn-lift-action').style.display = 'block';
+            const btnAction = document.getElementById('btn-lift-action');
+            btnAction.style.display = 'block';
             
-            // ★プレイ中はマップに戻るボタンを非表示にして誤爆を防ぐ！
+            // ★プレイ中はマップに戻るボタンを非表示にして誤爆を防ぐ
             document.getElementById('btn-lift-back').style.display = 'none'; 
             
             liftVy = -4; 
@@ -429,7 +451,7 @@
                 document.getElementById('lift-count').innerText = liftCount;
                 playSound('kick');
             } else {
-                // ペナルティ：空振り（早すぎ・遅すぎ）で即ゲームオーバー
+                // ペナルティ：空振り
                 showHitText("MISS...", "popup-miss");
                 endLiftingGame("空振りした！");
             }
@@ -450,8 +472,8 @@
             liftState = "gameover";
             playSound('miss');
             
-            // ★ボタンを非表示ではなく無効化（disabled）することで、レイアウトズレによる誤爆を防ぐ
-            document.getElementById('btn-lift-action').disabled = true;
+            // ★ボタンを消すことで、レイアウトズレによる誤爆を防ぐ
+            document.getElementById('btn-lift-action').style.display = 'none';
             
             let reward = liftCount * 10;
             playerData.money += reward;
@@ -517,26 +539,91 @@
             return `${now.getMonth() + 1}/${now.getDate()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
         }
 
-        // --- 音声入力 ＆ AI ---
-        let recognition = null; let isListening = false; let latestTranscript = ""; let isWaitingConfirm = false;
+        // --- ★改修：音声入力 ＆ AI ---
+        let recognition = null; 
+        let isListening = false; 
+        let latestTranscript = ""; 
 
         function startSpeech() {
-            const voiceBtn = document.getElementById('btn-voice'); const voiceLog = document.getElementById('voice-log');
-            if (isListening && recognition) { isWaitingConfirm = true; recognition.stop(); voiceBtn.style.display = "none"; voiceLog.innerText = "⏳ いま話した言葉をあつめています..."; return; }
-            if (!recognition) {
-                const SpeechRecognition = window.WindowsSpeechRecognition || window.SpeechRecognition || window.webkitSpeechRecognition;
-                if (!SpeechRecognition) { voiceLog.innerText = "エラー: マイク非対応"; return; }
-                recognition = new SpeechRecognition(); recognition.lang = 'ja-JP'; recognition.interimResults = true; recognition.maxAlternatives = 1; recognition.continuous = true; 
-                recognition.onstart = function() { isListening = true; isWaitingConfirm = false; latestTranscript = ""; voiceBtn.innerText = "🛑 話しおわったらここをおす！"; voiceBtn.style.backgroundColor = "#d32f2f"; voiceLog.innerText = "スマホにむかってゆっくり話してね！"; };
-                recognition.onresult = function(event) { let resultText = ""; for (let i = event.resultIndex; i < event.results.length; i++) { resultText += event.results[i][0].transcript; } latestTranscript = resultText; voiceLog.innerHTML = `<strong>ききとり中：</strong> 「<span style="color: #00e5ff;">${latestTranscript}</span>」`; };
-                recognition.onerror = function(event) { if (event.error !== 'aborted') { voiceLog.innerText = "エラー発生"; resetVoiceUI(); } };
-                recognition.onend = function() { isListening = false; if (isWaitingConfirm) { document.getElementById('confirm-buttons-area').style.display = 'block'; if (latestTranscript.trim() === "") { document.getElementById('voice-log').innerHTML = `何も聞こえなかったよ。`; document.getElementById('btn-confirm-ok').disabled = true; } else { document.getElementById('voice-log').innerHTML = `🤖 <strong>AIかんとく：</strong><br>「<span style="color: #00e5ff;">${latestTranscript}</span>」<br>でOKなら緑のボタンをおしてね！`; document.getElementById('btn-confirm-ok').disabled = false; } } else { resetVoiceUI(); } };
+            const voiceBtn = document.getElementById('btn-voice'); 
+            const voiceLog = document.getElementById('voice-log');
+            
+            // すでに起動中の場合はストップする
+            if (isListening && recognition) { 
+                recognition.stop(); 
+                voiceBtn.style.display = "none"; 
+                voiceLog.innerText = "⏳ いま話した言葉をあつめています..."; 
+                return; 
             }
-            try { recognition.start(); } catch (e) { console.log(e); }
+
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) { 
+                voiceLog.innerText = "エラー: マイク非対応ブラウザです。SafariやChromeを使ってね。"; 
+                return; 
+            }
+            
+            // ★連続使用でのスタックを防ぐため、毎回必ず新しいインスタンスを作り直す
+            recognition = new SpeechRecognition(); 
+            recognition.lang = 'ja-JP'; 
+            recognition.interimResults = true; 
+            recognition.maxAlternatives = 1; 
+            recognition.continuous = true; 
+
+            recognition.onstart = function() { 
+                isListening = true; 
+                latestTranscript = ""; 
+                voiceBtn.innerText = "🛑 話しおわったらここをおす！"; 
+                voiceBtn.style.backgroundColor = "#d32f2f"; 
+                voiceLog.innerText = "スマホにむかってゆっくり話してね！"; 
+            };
+            
+            recognition.onresult = function(event) { 
+                let resultText = ""; 
+                for (let i = event.resultIndex; i < event.results.length; i++) { 
+                    resultText += event.results[i][0].transcript; 
+                } 
+                latestTranscript = resultText; 
+                voiceLog.innerHTML = `<strong>ききとり中：</strong> 「<span style="color: #00e5ff;">${latestTranscript}</span>」`; 
+            };
+            
+            recognition.onerror = function(event) { 
+                if (event.error !== 'aborted') { 
+                    voiceLog.innerText = "エラーが発生したよ。もう一度ためしてね。"; 
+                    resetVoiceUI(); 
+                } 
+            };
+            
+            recognition.onend = function() { 
+                isListening = false; 
+                if (latestTranscript.trim() === "") { 
+                    voiceLog.innerHTML = `何も聞こえなかったよ。`; 
+                    resetVoiceUI();
+                } else { 
+                    document.getElementById('confirm-buttons-area').style.display = 'block'; 
+                    voiceBtn.style.display = "none"; 
+                    document.getElementById('voice-log').innerHTML = `🤖 <strong>AIかんとく：</strong><br>「<span style="color: #00e5ff;">${latestTranscript}</span>」<br>でOKなら緑のボタンをおしてね！`; 
+                    document.getElementById('btn-confirm-ok').disabled = false; 
+                } 
+            };
+
+            try { 
+                recognition.start(); 
+            } catch (e) { 
+                console.log(e); 
+                resetVoiceUI();
+            }
         }
-        function retryVoiceInput() { isWaitingConfirm = false; document.getElementById('confirm-buttons-area').style.display = 'none'; resetVoiceUI(); }
-        function commitVoiceResult() { isWaitingConfirm = false; document.getElementById('confirm-buttons-area').style.display = 'none'; callGeminiAPI(latestTranscript); }
-        function resetVoiceUI() { const voiceBtn = document.getElementById('btn-voice'); voiceBtn.style.display = 'block'; voiceBtn.innerText = "🎙 れんしゅうを声でほうこく！"; voiceBtn.style.backgroundColor = "#ff9800"; document.getElementById('voice-log').innerText = "上のボタンをおして練習を教えてね！"; }
+        
+        function retryVoiceInput() { document.getElementById('confirm-buttons-area').style.display = 'none'; resetVoiceUI(); }
+        function commitVoiceResult() { document.getElementById('confirm-buttons-area').style.display = 'none'; callGeminiAPI(latestTranscript); }
+        
+        function resetVoiceUI() { 
+            const voiceBtn = document.getElementById('btn-voice'); 
+            voiceBtn.style.display = 'block'; 
+            voiceBtn.innerText = "🎙 れんしゅうを声でほうこく！"; 
+            voiceBtn.style.backgroundColor = "#ff9800"; 
+            document.getElementById('confirm-buttons-area').style.display = 'none';
+        }
 
         // ★ Cloudflare Workersを叩く
         async function callGeminiAPI(text) {
@@ -589,7 +676,7 @@ ${pastHistoryText}子供が今回の練習内容を報告しました。
             playerData.kick+=k; playerData.speed+=s; playerData.technique+=t; playerData.stamina+=st;
             
             const msg = "ナイス練習だ！（※通信エラーです）";
-            document.getElementById('voice-log').innerHTML = `🤖 <strong>AIかんとく：</strong><br>「${msg}」<div class="report-box"><strong>📊 分析リポート</strong><br>━<br>⚽️ キック +${k}<br>⚡️ スピード +${s}<br>🪄 テクニック +${t}<br>❤️ スタミナ +${st}<br>━</div><br><button onclick="resetVoiceUI()" style="background-color: #4caf50;">つぎへ</button>`;
+            document.getElementById('voice-log').innerHTML = `🤖 <strong>AIかんとく：</strong><br>「${msg}」<div class="report-box"><strong>📊 分析リポート</strong><br>━<br>⚽️ キック +${k}<br>⚡️ スピード +${s}<br>🪄 テクニック +${t}<br>❤️ スタミナ +${st}<br>━</div><br><button onclick="resetVoiceUI()" style="background-color: #4caf50; margin: 0 auto; display: block;">つぎへ</button>`;
             
             playerData.history.push({ input: text, reply: msg, timestamp: getCurrentTimestamp() });
             if(playerData.history.length > 20) playerData.history.shift();
