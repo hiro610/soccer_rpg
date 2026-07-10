@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>サッカーせいちょうRPG - スプリント3（ミニゲーム・サウンド版）</title>
+    <title>サッカーせいちょうRPG - スプリント3（クオリティアップ版）</title>
     <style>
         /* ズーム防止と基本設定 */
         html, body, button, .card, .mini-stadium, .glass-box, .gauge-container, .gauge-bar, .sweet-spot, .gold-spot {
@@ -90,16 +90,12 @@
 </head>
 <body>
 
-    <!-- 共通ヘッダー -->
     <div class="header-status">
         <div style="font-weight: bold; color: #00e5ff;">👤 <span id="txt-name-header">？？？</span></div>
         <div style="color: #ffeb3b; font-weight: bold;">💰 <span id="txt-money-header">0</span>円</div>
         <div style="color: #4caf50; font-weight: bold;">🏆 Lv.<span id="txt-level-header">1</span></div>
     </div>
 
-    <!-- ===================================== -->
-    <!-- 📍 画面1：マップ画面（ホーム） -->
-    <!-- ===================================== -->
     <div id="screen-map" class="screen active">
         <div class="card status-card">
             <div id="bg-img-container"></div>
@@ -129,9 +125,6 @@
         <button onclick="changeName()" style="background-color: transparent; box-shadow: none; font-size: 12px; text-decoration: underline; margin-top: 20px;">なまえをかえる</button>
     </div>
 
-    <!-- ===================================== -->
-    <!-- 📍 画面2：練習場（AI音声入力） -->
-    <!-- ===================================== -->
     <div id="screen-training" class="screen">
         <div class="card">
             <h3>🎙️ ほうこく広場（AIかんとく）</h3>
@@ -147,27 +140,29 @@
         <button class="btn-back" onclick="showScreen('map'); playSound('tap');">🔙 マップにもどる</button>
     </div>
 
-    <!-- ===================================== -->
-    <!-- 📍 画面3：リフティングミニゲーム -->
-    <!-- ===================================== -->
     <div id="screen-lifting" class="screen">
         <div class="card" style="height: 380px; position: relative;" id="lifting-area">
             <h3>⚽ リフティング特訓</h3>
             <p style="font-size: 12px; margin: 0;">赤い線の近くにボールが来たらタップ！<br>落とすまでのお金がもらえるぞ！</p>
             <div style="font-size:30px; font-weight:bold; color:#ffeb3b; margin-top:10px;">回数: <span id="lift-count">0</span></div>
             
-            <!-- ボール -->
             <div id="lift-ball" style="position:absolute; left: 40%; top:50px; font-size: 50px; z-index: 10;">⚽</div>
-            <!-- 判定ライン -->
             <div style="position:absolute; bottom: 80px; width:100%; border-top: 3px dashed #ff1744; left:0; z-index: 5;"></div>
+            
+            <div id="lift-result-area" style="display:none; position:absolute; top:35%; left:10%; width:80%; background:rgba(0,0,0,0.9); border:2px solid #ffeb3b; border-radius:10px; padding:15px; z-index:20; box-sizing: border-box;">
+                <p id="lift-result-text" style="font-size:16px; font-weight:bold; line-height: 1.5; margin-top:0;"></p>
+                <button onclick="initLifting(); playSound('tap');" style="background-color:#4caf50; width:90%; margin-top:10px; font-size:14px;">🔄 もう１回やる</button>
+                <button onclick="showScreen('map'); playSound('tap');" style="background-color:#f44336; width:90%; font-size:14px;">🔙 マップにもどる</button>
+            </div>
         </div>
-        <button onclick="tapLifting()" style="width: 85%; padding: 20px; font-size: 22px; background-color: #00e5ff; color:#0d1b2a; box-shadow: 0 4px 0 #00b8d4; margin-bottom:10px;">👟 蹴る！！！</button>
-        <button class="btn-back" onclick="closeLifting(); playSound('tap');">🔙 終わってマップにもどる</button>
+        
+        <button id="btn-lift-start" onclick="startLifting(); playSound('whistle');" style="width: 85%; padding: 20px; font-size: 22px; background-color: #ff9800; color:#fff; box-shadow: 0 4px 0 #e65100; margin-bottom:10px;">▶️ スタート！</button>
+        
+        <button id="btn-lift-action" onclick="tapLifting()" style="display:none; width: 85%; padding: 20px; font-size: 22px; background-color: #00e5ff; color:#0d1b2a; box-shadow: 0 4px 0 #00b8d4; margin-bottom:10px;">👟 蹴る！！！</button>
+        
+        <button class="btn-back" onclick="showScreen('map'); playSound('tap');">🔙 マップにもどる</button>
     </div>
 
-    <!-- ===================================== -->
-    <!-- 📍 画面4：ショップ -->
-    <!-- ===================================== -->
     <div id="screen-shop" class="screen">
         <div class="card">
             <h3>🍇 まほうのショップ</h3>
@@ -182,9 +177,6 @@
         <button class="btn-back" onclick="showScreen('map'); playSound('tap');">🔙 マップにもどる</button>
     </div>
 
-    <!-- ===================================== -->
-    <!-- 📍 画面5：スタジアム（試合） -->
-    <!-- ===================================== -->
     <div id="screen-match" class="screen">
         <div class="card">
             <h3>🔥 VS ライバルチーム</h3>
@@ -205,7 +197,7 @@
 
             <div id="game-mechanic-zone" style="min-height: 40px; margin: 5px 0;">
                 <div id="ui-box-dribble" style="display: none;"><div class="gauge-container"><div class="mash-bar" id="dribble-mash-bar"></div></div></div>
-                <div id="ui-box-jump" style="display: none;"><div style="font-size:18px; font-weight:bold; color:#ffeb3b; height:24px;" id="jump-signal-text">あいてが走ってきた！</div></div>
+                <div id="ui-box-jump" style="display: none;"><div style="font-size:16px; font-weight:bold; color:#ffeb3b; height:24px;" id="jump-signal-text">あいてが走ってきた！</div></div>
                 <div id="ui-box-shoot" style="display: none;">
                     <div class="gauge-container" id="final-gauge-box">
                         <div class="sweet-spot" id="ui-sweet-spot"></div><div class="gold-spot" id="ui-gold-spot"></div><div class="gauge-bar" id="final-indicator"></div>
@@ -221,32 +213,29 @@
         <button class="btn-back" onclick="showScreen('map'); playSound('tap');" id="btn-back-map">🔙 マップにもどる</button>
     </div>
 
-    <!-- ゴールポップアップ -->
     <div id="result-overlay">
         <div id="result-announcement">GOAL!!</div>
         <div id="result-sub-box"><p id="result-sub-text" style="margin: 0;"></p></div>
-        <button onclick="closeResultOverlay(); playSound('tap');" style="margin-top: 35px; font-size: 20px; padding: 14px 35px; background-color: #4caf50; box-shadow: 0 4px 0 #388e3c; position: relative; z-index: 10001;">つぎへ</button>
+        <button onclick="closeResultOverlay(); playSound('tap');" style="margin-top: 35px; font-size: 20px; padding: 14px 35px; background-color: #4caf50; position: relative; z-index: 10001;">つぎへ</button>
     </div>
 
     <script>
         // --- 0. 音声（サウンド）システム ---
-        // ※後で同じフォルダに mp3 ファイルを置くと音が鳴ります！
+        // ★【追加】スーパーゴール用の音源を追加しました！
         const sounds = {
             tap: new Audio('se_tap.mp3'),
             kick: new Audio('se_kick.mp3'),
             whistle: new Audio('se_whistle.mp3'),
             goal: new Audio('se_goal.mp3'),
+            supergoal: new Audio('se_supergoal.mp3'), // 追加！
             miss: new Audio('se_miss.mp3')
         };
-        // 音量調整
         for(let key in sounds) { sounds[key].volume = 0.5; }
 
         function playSound(name) {
             if(sounds[name]) {
-                sounds[name].currentTime = 0; // 連続で鳴らせるように頭出し
-                sounds[name].play().catch(e => {
-                    // ブラウザの仕様で、最初のタップ前は音がブロックされるので無視する
-                });
+                sounds[name].currentTime = 0; 
+                sounds[name].play().catch(e => {});
             }
         }
 
@@ -338,58 +327,81 @@
 
         function saveGame() { localStorage.setItem('soccer_rpg_save', JSON.stringify(playerData)); updateUI(); }
 
-        // --- ミニゲーム：リフティング ---
+        // --- ★改修：ミニゲーム リフティング ---
         let liftY = 50;
         let liftVy = 0;
         let liftCount = 0;
-        let liftTimer = null;
+        let liftState = "idle"; // idle(待機), playing(プレイ中), gameover(終了)
+        let liftAnimationFrame = null;
+        let lastTime = 0;
 
         function initLifting() {
-            liftY = 50; liftVy = 0; liftCount = 0;
+            liftState = "idle";
+            liftY = 50;
+            liftVy = 0;
+            liftCount = 0;
             document.getElementById('lift-count').innerText = liftCount;
             document.getElementById('lift-ball').style.top = liftY + "px";
-            if(liftTimer) clearInterval(liftTimer);
-            // プレイ開始時にボールを少しだけふわっと浮かせる
-            liftVy = -5;
-            liftTimer = setInterval(updateLifting, 30);
+            
+            // UIのリセット
+            document.getElementById('btn-lift-start').style.display = 'block';
+            document.getElementById('btn-lift-action').style.display = 'none';
+            document.getElementById('lift-result-area').style.display = 'none';
+            
+            if(liftAnimationFrame) cancelAnimationFrame(liftAnimationFrame);
         }
 
-        function updateLifting() {
-            liftVy += 1.5; // 重力
-            liftY += liftVy;
+        function startLifting() {
+            liftState = "playing";
+            document.getElementById('btn-lift-start').style.display = 'none';
+            document.getElementById('btn-lift-action').style.display = 'block';
+            
+            liftVy = -5; // 最初軽く浮かせる
+            lastTime = performance.now();
+            liftAnimationFrame = requestAnimationFrame(updateLifting);
+        }
+
+        function updateLifting(time) {
+            if (liftState !== "playing") return;
+            
+            let deltaTime = (time - lastTime) / (1000/60); // フレーム間の差分を吸収
+            if(deltaTime > 3) deltaTime = 3;
+            lastTime = time;
+
+            liftVy += 0.6 * deltaTime; // 重力（マイルドに調整）
+            liftY += liftVy * deltaTime;
             document.getElementById('lift-ball').style.top = liftY + "px";
 
-            // ボールが地面（下端）に落ちたらゲームオーバー
+            // ボールが地面に落ちたらゲームオーバー
             if (liftY > 320) {
-                clearInterval(liftTimer);
-                liftTimer = null;
+                liftState = "gameover";
                 playSound('miss');
-                setTimeout(() => {
-                    alert(`終了！\n記録は ${liftCount} 回でした！\nおこづかい ${liftCount * 10} 円ゲット！`);
-                    playerData.money += liftCount * 10;
-                    saveGame();
-                    closeLifting();
-                }, 100);
+                document.getElementById('btn-lift-action').style.display = 'none';
+                
+                let reward = liftCount * 10;
+                playerData.money += reward;
+                saveGame();
+                
+                document.getElementById('lift-result-text').innerHTML = `しゅうりょう！<br>記録: ${liftCount} 回<br><span style="color:#ffeb3b;">おこづかい ${reward} 円ゲット！</span>`;
+                document.getElementById('lift-result-area').style.display = 'block';
+            } else {
+                liftAnimationFrame = requestAnimationFrame(updateLifting);
             }
         }
 
         function tapLifting() {
-            if(!liftTimer) return; // ゲーム中じゃない時は無視
+            if (liftState !== "playing") return;
             
-            // 判定エリア：Y座標が 200px 〜 320px の間にあれば成功
-            if (liftY > 200 && liftY < 320) {
-                liftVy = -15 - (Math.random() * 4); // 跳ね返る（少しランダムに高さが変わる）
+            // 判定エリアを広くして遊びやすく（Y座標150〜340）
+            if (liftY > 150 && liftY < 340) {
+                // 毎回ちょうど良い高さまで跳ねるようにランダム性を追加
+                liftVy = -11 - (Math.random() * 2); 
                 liftCount++;
                 document.getElementById('lift-count').innerText = liftCount;
-                playSound('kick'); // キック音！
+                playSound('kick');
             } else {
-                playSound('tap'); // 空振り音
+                playSound('tap');
             }
-        }
-
-        function closeLifting() {
-            if(liftTimer) { clearInterval(liftTimer); liftTimer = null; }
-            showScreen('map');
         }
 
 
@@ -417,7 +429,7 @@
                     if(item.stat === "all") { playerData.kick += item.val; playerData.speed += item.val; playerData.technique += item.val; playerData.stamina += item.val; }
                     else if(item.stat === "kt") { playerData.kick += item.val; playerData.technique += item.val; }
                     else { playerData[item.stat] += item.val; }
-                    playSound('goal'); // 買った時のファンファーレ
+                    playSound('goal'); 
                     alert(`むしゃむしゃ… ${item.effect}！`);
                     saveGame();
                 }
@@ -496,7 +508,7 @@ ${pastHistoryText}子供が今回の練習内容を報告しました。
 必ず以下のJSONフォーマットのみを出力してください。Markdownの装飾(\`\`\`json)は絶対に含めないでください。
 {"kick":アップ量, "speed":アップ量, "technique":アップ量, "stamina":アップ量, "message":"褒め言葉"}`;
 
-            // ★ ここをご自身のWorkerのURLに書き換えてください ★
+            // ★ここをご自身のWorkerのURLに書き換えてください★
             const WORKER_URL = "https://soccer-rpg-api.muu-hii-168.workers.dev/"; 
 
             try {
@@ -515,7 +527,7 @@ ${pastHistoryText}子供が今回の練習内容を報告しました。
 
                 voiceLog.innerHTML = `🤖 <strong>AIかんとく：</strong><br>「${result.message}」<br><div class="report-box"><strong>📊 AI分析リポート</strong><br>━<br>${result.kick > 0 ? `⚽️ キック +${result.kick}<br>` : ''}${result.speed > 0 ? `⚡️ スピード +${result.speed}<br>` : ''}${result.technique > 0 ? `🪄 テクニック +${result.technique}<br>` : ''}${result.stamina > 0 ? `❤️ スタミナ +${result.stamina}<br>` : ''}━</div><br><button onclick="resetVoiceUI()" style="background-color: #4caf50;">つぎのれんしゅうへ</button>`;
                 
-                playSound('goal'); // AIからの返答完了音
+                playSound('supergoal'); // AIからの返答完了音
 
                 playerData.history.push({ input: text, reply: result.message, timestamp: getCurrentTimestamp() });
                 if(playerData.history.length > 20) playerData.history.shift(); 
@@ -528,7 +540,7 @@ ${pastHistoryText}子供が今回の練習内容を報告しました。
             if (text.includes("シュート")) k+=3; else if (text.includes("走")) s+=3; else if (text.includes("パス")) t+=3; else if (text.includes("ドリブル")) st+=3;
             playerData.kick+=k; playerData.speed+=s; playerData.technique+=t; playerData.stamina+=st;
             
-            const msg = "ナイス練習だ！（※APIキーが設定されていないか、通信エラーです）";
+            const msg = "ナイス練習だ！（※通信エラーです）";
             document.getElementById('voice-log').innerHTML = `🤖 <strong>AIかんとく：</strong><br>「${msg}」<div class="report-box"><strong>📊 分析リポート</strong><br>━<br>⚽️ キック +${k}<br>⚡️ スピード +${s}<br>🪄 テクニック +${t}<br>❤️ スタミナ +${st}<br>━</div><br><button onclick="resetVoiceUI()" style="background-color: #4caf50;">つぎへ</button>`;
             
             playerData.history.push({ input: text, reply: msg, timestamp: getCurrentTimestamp() });
@@ -568,7 +580,7 @@ ${pastHistoryText}子供が今回の練習内容を報告しました。
 
         function startMatchCombo() {
             if (matchPhase !== "idle" && matchPhase !== "result") return;
-            playSound('whistle'); // 試合開始ホイッスル！
+            playSound('whistle'); 
 
             document.getElementById('btn-back-map').style.display = 'none'; 
             maxMatchStamina = playerData.stamina; currentMatchStamina = playerData.stamina;
@@ -649,7 +661,7 @@ ${pastHistoryText}子供が今回の練習内容を報告しました。
                         currentMatchStamina = Math.max(1, currentMatchStamina - damage); 
                         updateStaminaUI();
                         enemy.style.transform = "scale(1.2) rotate(-10deg)";
-                        playSound('miss'); // ぶつかった音
+                        playSound('miss'); 
                         document.getElementById('stadium-player').style.left = "4%"; 
                         document.getElementById('battle-log').innerHTML = `<span style="color:#f44336; font-weight:bold;">😢 ズドン！</span>（スタミナ-${damage}）`;
                         setTimeout(() => { document.getElementById('stadium-player').style.left = "10%"; }, 250);
@@ -711,7 +723,7 @@ ${pastHistoryText}子供が今回の練習内容を報告しました。
 
         function executeShoot() {
             if (matchPhase !== "shoot") return; matchPhase = "result"; 
-            playSound('kick'); // シュートのキック音！
+            playSound('kick'); 
 
             const indicator = document.getElementById('final-indicator'); const gaugeBox = document.getElementById('final-gauge-box');
             const computedStyle = window.getComputedStyle(indicator); const leftStr = computedStyle.getPropertyValue('left');
@@ -730,7 +742,10 @@ ${pastHistoryText}子供が今回の練習内容を報告しました。
                 const goldRight = window.targetGoldLeft + window.targetGoldWidth;
 
                 const processGoal = (prize, isSuper) => {
-                    playSound('goal'); // ゴールファンファーレ！
+                    // ★スーパーゴールの判定！
+                    if (isSuper) playSound('supergoal');
+                    else playSound('goal');
+                    
                     playerData.money += prize;
                     playerData.level += 1; 
                     const prefix = isSuper ? "👑✨ SUPER GOAL!!! ✨👑" : "⚽️🔥 GOOOOOAL!!! 🔥⚽️";
@@ -745,7 +760,7 @@ ${pastHistoryText}子供が今回の練習内容を報告しました。
                 } else if (centerPercent >= window.targetSpotLeft && centerPercent <= 85 + (barWidthPercent / 2)) {
                     processGoal(50 + (playerData.kick * 2) + playerData.technique, false);
                 } else {
-                    playSound('miss'); // セーブされた時のガッカリ音
+                    playSound('miss'); 
                     announcement.innerHTML = "🧤 SAVED... 😢"; announcement.style.color = "#b0bec5"; announcement.style.animation = "popIn 0.4s both";
                     subText.innerHTML = `おしい！あいてのキーパーにがっちりとめられた。<br>もっとれんしゅうをして、能力を上げて再ちょうせんだ！`;
                 }
@@ -764,6 +779,7 @@ ${pastHistoryText}子供が今回の練習内容を報告しました。
         function resetData() {
             if (confirm('ほんとうにデータをさいしょからにする？')) {
                 localStorage.removeItem('soccer_rpg_save');
+                localStorage.removeItem('gemini_api_key');
                 playerData = { name: "", level: 1, kick: 10, speed: 10, technique: 10, stamina: 10, money: 0, pet: "なし", history: [] };
                 alert('リセットしました！'); location.reload();
             }
