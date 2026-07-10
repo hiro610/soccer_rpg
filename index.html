@@ -115,12 +115,16 @@
 </head>
 <body id="game-body">
 
+    <!-- 共通ヘッダー -->
     <div class="header-status">
         <div style="font-weight: bold; color: #00e5ff;">👤 <span id="txt-name-header">？？？</span></div>
         <div style="color: #ffeb3b; font-weight: bold;">💰 <span id="txt-money-header">0</span>円</div>
         <div style="color: #4caf50; font-weight: bold;">🏆 Lv.<span id="txt-level-header">1</span></div>
     </div>
 
+    <!-- ===================================== -->
+    <!-- 📍 画面1：マップ画面（ホーム） -->
+    <!-- ===================================== -->
     <div id="screen-map" class="screen active">
         <div class="card status-card">
             <div id="bg-img-container"></div>
@@ -148,8 +152,12 @@
         </div>
         
         <button onclick="changeName()" style="background-color: transparent; box-shadow: none; font-size: 12px; text-decoration: underline; margin-top: 20px; margin-bottom: 10px; display: block; margin-left: auto; margin-right: auto;">なまえをかえる</button>
+        <button onclick="resetData()" style="background: none; box-shadow: none; font-size: 10px; color: #aaa; margin: 0 auto 20px auto; display: block;">データをさいしょからにする</button>
     </div>
 
+    <!-- ===================================== -->
+    <!-- 📍 画面2：練習場（AI音声入力） -->
+    <!-- ===================================== -->
     <div id="screen-training" class="screen">
         <div class="card">
             <h3>🎙️ ほうこく広場（AIかんとく）</h3>
@@ -167,15 +175,21 @@
         <button class="btn-back" onclick="showScreen('map'); playSound('tap');">🔙 マップにもどる</button>
     </div>
 
+    <!-- ===================================== -->
+    <!-- 📍 画面3：リフティングミニゲーム -->
+    <!-- ===================================== -->
     <div id="screen-lifting" class="screen">
         <div class="card" style="height: 380px; position: relative;" id="lifting-area">
             <h3>⚽ リフティング特訓</h3>
             <p style="font-size: 12px; margin: 0;">赤い線の近くにボールが来たらタップ！<br>遠すぎると空振りで即終了だ！</p>
             <div style="font-size:30px; font-weight:bold; color:#ffeb3b; margin-top:10px;">回数: <span id="lift-count">0</span></div>
             
+            <!-- ボール -->
             <div id="lift-ball" style="position:absolute; left: 40%; top:50px; font-size: 50px; z-index: 10;">⚽</div>
+            <!-- 判定ライン -->
             <div style="position:absolute; bottom: 80px; width:100%; border-top: 3px dashed #ff1744; left:0; z-index: 5;"></div>
             
+            <!-- 結果とリトライボタン -->
             <div id="lift-result-area" style="display:none; position:absolute; top:35%; left:10%; width:80%; background:rgba(0,0,0,0.9); border:2px solid #ffeb3b; border-radius:10px; padding:15px; z-index:30; box-sizing: border-box;">
                 <p id="lift-result-text" style="font-size:16px; font-weight:bold; line-height: 1.5; margin-top:0;"></p>
                 <button onclick="initLifting(); playSound('tap');" style="background-color:#4caf50; width:90%; margin: 0 auto 10px auto; display: block; font-size:14px;">🔄 もう１回やる</button>
@@ -189,6 +203,9 @@
         <button class="btn-back" id="btn-lift-back" onclick="showScreen('map'); playSound('tap');" style="margin: 0 auto; display: block;">🔙 マップにもどる</button>
     </div>
 
+    <!-- ===================================== -->
+    <!-- 📍 画面4：ショップ -->
+    <!-- ===================================== -->
     <div id="screen-shop" class="screen">
         <div class="card">
             <h3>🍇 まほうのショップ</h3>
@@ -203,6 +220,9 @@
         <button class="btn-back" onclick="showScreen('map'); playSound('tap');">🔙 マップにもどる</button>
     </div>
 
+    <!-- ===================================== -->
+    <!-- 📍 画面5：スタジアム（試合） -->
+    <!-- ===================================== -->
     <div id="screen-match" class="screen">
         <div class="card">
             <h3>🔥 VS ライバルチーム</h3>
@@ -240,6 +260,7 @@
         <button class="btn-back" onclick="showScreen('map'); playSound('tap');" id="btn-back-map">🔙 マップにもどる</button>
     </div>
 
+    <!-- ゴールポップアップ -->
     <div id="result-overlay">
         <div id="result-announcement">GOAL!!</div>
         <div id="result-sub-box"><p id="result-sub-text" style="margin: 0;"></p></div>
@@ -258,10 +279,33 @@
         };
         for(let key in sounds) { sounds[key].volume = 0.5; }
 
+        // ★スマホ向けハック：画面の最初のタップで全Audioを無音再生してロック解除する
+        let audioUnlocked = false;
+        function unlockAudio() {
+            if (audioUnlocked) return;
+            for (let key in sounds) {
+                sounds[key].volume = 0; // 無音にする
+                let p = sounds[key].play();
+                if (p !== undefined) {
+                    p.then(() => {
+                        sounds[key].pause();
+                        sounds[key].currentTime = 0;
+                        sounds[key].volume = 0.5; // 音量を戻す
+                    }).catch(e => {});
+                }
+            }
+            audioUnlocked = true;
+            document.body.removeEventListener('touchstart', unlockAudio);
+            document.body.removeEventListener('click', unlockAudio);
+        }
+        document.body.addEventListener('touchstart', unlockAudio);
+        document.body.addEventListener('click', unlockAudio);
+
+
         function playSound(name) {
             if(sounds[name]) {
                 sounds[name].currentTime = 0; 
-                sounds[name].play().catch(e => {});
+                sounds[name].play().catch(e => { console.log("Sound block:", e); });
             }
         }
 
@@ -409,7 +453,6 @@
             ball.style.top = liftY + "px";
             ball.style.transform = `rotate(${liftAngle}deg)`;
 
-            // ボールが地面に落ちたらゲームオーバー
             if (liftY > 320) {
                 endLiftingGame("落としてしまった...");
             } else {
@@ -420,7 +463,6 @@
         function tapLifting() {
             if (liftState !== "playing") return;
             
-            // 判定エリア (Y: 240 ~ 320 をヒットとする)
             if (liftY >= 240 && liftY <= 320) {
                 let isPerfect = (liftY >= 280 && liftY <= 300);
                 showHitText(isPerfect ? "PERFECT!" : "GREAT!", isPerfect ? "popup-perfect" : "popup-great");
@@ -430,7 +472,6 @@
                 document.getElementById('lift-count').innerText = liftCount;
                 playSound('kick');
             } else {
-                // ペナルティ：空振り
                 showHitText("MISS...", "popup-miss");
                 endLiftingGame("空振りした！");
             }
@@ -517,7 +558,7 @@
             return `${now.getMonth() + 1}/${now.getDate()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
         }
 
-        // --- ★音声入力（マイクとオーディオの競合を完全に回避） ---
+        // --- 音声入力 ＆ AI ---
         let recognition = null; 
         let isListening = false; 
         let latestTranscript = ""; 
@@ -639,7 +680,6 @@ ${pastHistoryText}子供が今回の練習内容を報告しました。
 
                 voiceLog.innerHTML = `🤖 <strong>AIかんとく：</strong><br>「${result.message}」<br><div class="report-box"><strong>📊 AI分析リポート</strong><br>━<br>${result.kick > 0 ? `⚽️ キック +${result.kick}<br>` : ''}${result.speed > 0 ? `⚡️ スピード +${result.speed}<br>` : ''}${result.technique > 0 ? `🪄 テクニック +${result.technique}<br>` : ''}${result.stamina > 0 ? `❤️ スタミナ +${result.stamina}<br>` : ''}━</div><br><button onclick="resetVoiceUI()" style="background-color: #4caf50; margin: 0 auto; display: block;">つぎのれんしゅうへ</button>`;
                 
-                // ここは通信完了の合図として音を鳴らしてOK
                 playSound('supergoal'); 
 
                 playerData.history.push({ input: text, reply: result.message, timestamp: getCurrentTimestamp() });
@@ -661,7 +701,7 @@ ${pastHistoryText}子供が今回の練習内容を報告しました。
             saveGame(); renderHistory();
         }
 
-        // --- 試合システム ---
+        // --- ★難易度を緩和した試合システム ---
         let currentMatchStamina = 10; let maxMatchStamina = 10; let mashProgress = 0; let gameLoopInterval = null; let matchPhase = "idle";
         let enemyPositionLeft = 110; let enemySpeed = 1.5; let enemyCounter = 0; let isJumping = false; let hasHitThisEnemy = false; let isMatchForcedEnd = false; 
 
@@ -722,7 +762,8 @@ ${pastHistoryText}子供が今回の練習内容を報告しました。
 
             gameLoopInterval = setInterval(() => {
                 if (matchPhase !== "dribble") return;
-                const decay = Math.max(0.5, 1.0 + (playerData.level * 0.1));
+                // ★難易度緩和：敵のスタミナ減衰速度を緩やかに
+                const decay = Math.max(0.5, 0.8 + (playerData.level * 0.05));
                 mashProgress = Math.max(0, mashProgress - decay);
                 document.getElementById('dribble-mash-bar').style.width = mashProgress + "%";
                 
@@ -745,7 +786,7 @@ ${pastHistoryText}子供が今回の練習内容を報告しました。
             const mashGain = 6 + (playerData.speed / 5);
             mashProgress = Math.min(100, mashProgress + mashGain);
             document.getElementById('dribble-mash-bar').style.width = mashProgress + "%";
-            playSound('tap');
+            // ★音響バグ防止：連打時は音を鳴らさないようにする
 
             if (mashProgress >= 100) {
                 matchPhase = "transition"; clearInterval(gameLoopInterval); gameLoopInterval = null; 
@@ -768,7 +809,9 @@ ${pastHistoryText}子供が今回の練習内容を報告しました。
 
             const enemy = document.getElementById('stadium-enemy');
             enemy.innerText = "🏃‍♂️💨"; enemy.style.left = enemyPositionLeft + "%"; enemy.style.transform = "none";
-            enemySpeed = 1.6 + (playerData.level * 0.1);
+            
+            // ★難易度緩和：敵のスピード上昇を緩やかに
+            enemySpeed = 1.3 + (playerData.level * 0.05);
 
             document.getElementById('battle-buttons-area').innerHTML = `<button id="btn-game-main" onclick="executeJump()" style="background-color: #ff9800; width:85%; margin:0 auto; display:block; font-size:18px;">🪄 ジャンプ！！！</button>`;
 
@@ -777,8 +820,9 @@ ${pastHistoryText}子供が今回の練習内容を報告しました。
                 enemyPositionLeft -= enemySpeed; enemy.style.left = enemyPositionLeft + "%";
                 enemy.style.bottom = (15 + (Math.sin(enemyPositionLeft) * 5)) + "px";
 
+                // ★難易度緩和：当たり判定（危険ゾーン）を少し狭く
                 const techBonus = Math.min(6, playerData.technique / 4);
-                const dangerZoneLeft = 14 + techBonus; const dangerZoneRight = 32 - techBonus;
+                const dangerZoneLeft = 16 + techBonus; const dangerZoneRight = 30 - techBonus;
 
                 if (enemyPositionLeft >= dangerZoneLeft && enemyPositionLeft <= dangerZoneRight) {
                     if (!isJumping && !hasHitThisEnemy) {
@@ -802,7 +846,7 @@ ${pastHistoryText}子供が今回の練習内容を報告しました。
                 if (enemyPositionLeft <= -15) {
                     if (enemyCounter < 3) {
                         enemyCounter++; hasHitThisEnemy = false; enemyPositionLeft = 130; enemy.style.transform = "none";
-                        enemySpeed = 1.6 + (playerData.level * 0.1) + (enemyCounter * 0.4);
+                        enemySpeed = 1.3 + (playerData.level * 0.05) + (enemyCounter * 0.3);
                         document.getElementById('battle-log').innerHTML = `【フェーズ2】<span style="color:#ffeb3b; font-weight:bold;">【${enemyCounter}人目】</span>がくるぞ！`;
                     } else {
                         matchPhase = "transition"; clearInterval(gameLoopInterval); gameLoopInterval = null;
